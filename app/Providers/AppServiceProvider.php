@@ -14,6 +14,7 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Compatibilité MySQL anciennes versions (utf8mb4 index limit)
         Schema::defaultStringLength(191);
     }
 }

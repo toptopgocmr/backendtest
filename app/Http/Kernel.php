@@ -4,47 +4,13 @@ namespace App\Http;
 
 use Illuminate\Foundation\Http\Kernel as HttpKernel;
 
+/**
+ * Laravel 11 — Ce fichier est conservé pour compatibilité.
+ * La configuration des middlewares se fait dans bootstrap/app.php.
+ * Les tableaux $middleware, $middlewareGroups et $routeMiddleware
+ * ne sont plus lus par le framework en L11.
+ */
 class Kernel extends HttpKernel
 {
-    /**
-     * Les middleware globaux pour toutes les requêtes HTTP.
-     */
-    protected $middleware = [
-        \App\Http\Middleware\TrustProxies::class,
-        \Fruitcake\Cors\HandleCors::class,
-        \App\Http\Middleware\PreventRequestsDuringMaintenance::class,
-        \Illuminate\Foundation\Http\Middleware\ValidatePostSize::class,
-        \App\Http\Middleware\TrimStrings::class,
-        \Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull::class,
-    ];
-
-    /**
-     * Groupes de middleware pour les routes.
-     */
-    protected $middlewareGroups = [
-        'web' => [
-            \App\Http\Middleware\EncryptCookies::class,
-            \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
-            \Illuminate\Session\Middleware\StartSession::class,
-            \Illuminate\View\Middleware\ShareErrorsFromSession::class,
-            \App\Http\Middleware\VerifyCsrfToken::class,
-            \Illuminate\Routing\Middleware\SubstituteBindings::class,
-        ],
-
-        'api' => [
-            'throttle:api',
-            \Illuminate\Routing\Middleware\SubstituteBindings::class,
-        ],
-    ];
-
-    /**
-     * Middleware que l'on peut appliquer aux routes individuellement.
-     */
-    protected $routeMiddleware = [
-        'auth' => \App\Http\Middleware\Authenticate::class,
-        'auth.admin' => \App\Http\Middleware\AdminMiddleware::class,
-        'guest' => \App\Http\Middleware\RedirectIfAuthenticated::class,
-        'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
-        'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
-    ];
+    // Configuration centralisée dans bootstrap/app.php
 }

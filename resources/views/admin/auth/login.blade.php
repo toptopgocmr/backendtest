@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Connexion Admin</title>
+<title>Connexion Admin — ImmoStay</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
@@ -11,95 +11,99 @@ body{
   font-family:'DM Sans',sans-serif;
   min-height:100vh;
   display:flex;
+  flex-direction:column;
   align-items:center;
   justify-content:center;
-  background:#F0F4FF;
+  background:#FFFFFF;
   position:relative;
   overflow:hidden;
 }
 
-/* Background décoration Tholad */
+/* Décorations de fond subtiles couleurs Tholad */
 body::before{
-  content:'';position:absolute;top:-200px;right:-200px;
-  width:600px;height:600px;
-  background:radial-gradient(circle, rgba(0,71,255,.08) 0%, transparent 70%);
-  border-radius:50%;
+  content:'';position:absolute;top:-180px;right:-180px;
+  width:520px;height:520px;
+  background:radial-gradient(circle, rgba(0,71,255,.06) 0%, transparent 70%);
+  border-radius:50%;pointer-events:none;
 }
 body::after{
-  content:'';position:absolute;bottom:-150px;left:-150px;
-  width:400px;height:400px;
-  background:radial-gradient(circle, rgba(139,0,0,.06) 0%, transparent 70%);
-  border-radius:50%;
+  content:'';position:absolute;bottom:-130px;left:-130px;
+  width:380px;height:380px;
+  background:radial-gradient(circle, rgba(139,0,0,.05) 0%, transparent 70%);
+  border-radius:50%;pointer-events:none;
+}
+
+/* Barre Tholad en haut */
+.tholad-topbar{
+  position:fixed;top:0;left:0;right:0;
+  height:3px;
+  background:linear-gradient(90deg, #0047FF 50%, #1A0099 72%, #8B0000 100%);
+  z-index:100;
 }
 
 .wrapper{
   width:100%;max-width:460px;
   padding:20px;
   position:relative;z-index:1;
+  flex:1;display:flex;align-items:center;justify-content:center;
 }
 
-/* Card principale */
+/* Card */
 .card{
+  width:100%;
   background:#fff;
   border-radius:24px;
   padding:48px 44px;
-  box-shadow:0 20px 60px rgba(0,40,150,.12), 0 4px 16px rgba(0,0,0,.06);
+  box-shadow:0 20px 60px rgba(0,40,150,.10), 0 2px 12px rgba(0,0,0,.05);
   border:1px solid rgba(0,71,255,.08);
 }
 
 /* Logo */
 .logo-wrap{
   text-align:center;
-  margin-bottom:36px;
+  margin-bottom:28px;
 }
 .logo-wrap img{
-  height:80px;
-  width:auto;
-  margin-bottom:14px;
-  filter:drop-shadow(0 4px 12px rgba(0,71,255,.15));
+  height:90px;width:auto;
+  margin-bottom:12px;
+  filter:drop-shadow(0 4px 12px rgba(0,71,255,.12));
 }
 .logo-wrap h1{
   font-family:'Cormorant Garamond',serif;
-  font-size:28px;
-  font-weight:700;
-  color:#0F1F3D;
-  margin-bottom:4px;
+  font-size:26px;font-weight:700;
+  color:#0F1F3D;margin-bottom:4px;
 }
 .logo-wrap p{
-  font-size:13px;
-  color:#6B7280;
-  letter-spacing:.3px;
+  font-size:12.5px;color:#6B7280;letter-spacing:.3px;
 }
 
-/* Ligne décorative couleurs Tholad */
+/* Ligne couleurs Tholad */
 .brand-line{
-  display:flex;
-  height:4px;
-  border-radius:4px;
-  overflow:hidden;
-  margin-bottom:32px;
+  display:flex;height:3px;
+  border-radius:4px;overflow:hidden;
+  margin-bottom:30px;
 }
 .brand-line span:nth-child(1){flex:2;background:#0047FF;}
 .brand-line span:nth-child(2){flex:1;background:#1A0099;}
 .brand-line span:nth-child(3){flex:1;background:#8B0000;}
 
-/* Alert erreur */
+/* Alert */
 .alert{
-  padding:13px 16px;border-radius:12px;
-  font-size:13.5px;margin-bottom:24px;
+  padding:12px 16px;border-radius:12px;
+  font-size:13px;margin-bottom:22px;
   display:flex;align-items:center;gap:10px;
   background:#FEF2F2;color:#991B1B;
   border:1px solid #FECACA;
   animation:shake .4s ease;
 }
-@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
 
 /* Form */
-.form-group{margin-bottom:18px;}
+.form-group{margin-bottom:16px;}
 .form-group label{
-  display:block;font-size:12.5px;font-weight:700;
+  display:block;font-size:11.5px;font-weight:700;
   color:#374151;margin-bottom:7px;
-  text-transform:uppercase;letter-spacing:.5px;
+  text-transform:uppercase;letter-spacing:.6px;
 }
 .input-wrap{position:relative;}
 .input-icon{
@@ -114,8 +118,7 @@ body::after{
   outline:none;transition:all .2s;
 }
 .form-control:focus{
-  border-color:#0047FF;
-  background:#fff;
+  border-color:#0047FF;background:#fff;
   box-shadow:0 0 0 4px rgba(0,71,255,.08);
 }
 .form-control::placeholder{color:#9CA3AF;}
@@ -123,12 +126,9 @@ body::after{
 /* Remember */
 .remember{
   display:flex;align-items:center;gap:9px;
-  margin-bottom:26px;cursor:pointer;
+  margin-bottom:24px;cursor:pointer;
 }
-.remember input{
-  width:16px;height:16px;cursor:pointer;
-  accent-color:#0047FF;
-}
+.remember input{width:16px;height:16px;cursor:pointer;accent-color:#0047FF;}
 .remember span{font-size:13px;color:#4B5563;}
 
 /* Bouton */
@@ -140,44 +140,51 @@ body::after{
   font-family:'DM Sans',sans-serif;
   cursor:pointer;transition:all .25s;
   letter-spacing:.3px;
-  box-shadow:0 6px 20px rgba(0,71,255,.35);
+  box-shadow:0 6px 20px rgba(0,71,255,.3);
   position:relative;overflow:hidden;
 }
 .btn-login::before{
   content:'';position:absolute;top:0;left:-100%;
   width:100%;height:100%;
-  background:linear-gradient(90deg,transparent,rgba(255,255,255,.15),transparent);
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.12),transparent);
   transition:.5s;
 }
 .btn-login:hover::before{left:100%;}
-.btn-login:hover{
-  transform:translateY(-2px);
-  box-shadow:0 10px 28px rgba(0,71,255,.45);
-}
+.btn-login:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(0,71,255,.4);}
 .btn-login:active{transform:translateY(0);}
-
-/* Footer */
-.footer{
-  text-align:center;margin-top:28px;
-}
-.footer p{
-  font-size:11.5px;color:#9CA3AF;
-  line-height:1.6;
-}
-.footer strong{color:#6B7280;}
 
 /* Badge sécurité */
 .security-badge{
   display:flex;align-items:center;justify-content:center;
-  gap:6px;margin-top:16px;
-  font-size:11.5px;color:#6B7280;
+  gap:6px;margin-top:18px;
+  font-size:11.5px;color:#9CA3AF;
 }
-.security-badge::before{
-  content:'🔒';font-size:12px;
+
+/* Footer */
+footer{
+  width:100%;
+  padding:20px;
+  text-align:center;
+  border-top:1px solid #F0F0F0;
+  background:#fff;
+  position:relative;z-index:1;
 }
+footer .footer-logo{
+  display:flex;align-items:center;justify-content:center;
+  gap:8px;margin-bottom:6px;
+}
+footer .footer-logo img{height:18px;width:auto;opacity:.7;}
+footer .footer-logo span{
+  font-family:'Cormorant Garamond',serif;
+  font-size:14px;font-weight:700;color:#0F1F3D;
+}
+footer p{font-size:12px;color:#9CA3AF;}
+footer strong{color:#4B5563;font-weight:700;}
 </style>
 </head>
 <body>
+
+<div class="tholad-topbar"></div>
 
 <div class="wrapper">
   <div class="card">
@@ -187,8 +194,8 @@ body::after{
       <img src="{{ asset('images/tholad-logo.png') }}"
            onerror="this.style.display='none';document.getElementById('logo-fallback').style.display='block'"
            alt="Tholad Group">
-      <div id="logo-fallback" style="display:none;font-size:48px;margin-bottom:10px">🏠</div>
-    
+      <div id="logo-fallback" style="display:none;font-size:52px;margin-bottom:10px">🏠</div>
+      <h1>ImmoStay</h1>
       <p>Espace Administrateur — Tholad Group</p>
     </div>
 
@@ -197,14 +204,13 @@ body::after{
       <span></span><span></span><span></span>
     </div>
 
-    <!-- Erreur -->
+    <!-- Erreurs -->
     @if($errors->any())
     <div class="alert">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
       {{ $errors->first() }}
     </div>
     @endif
-
     @if(session('error'))
     <div class="alert">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
@@ -245,13 +251,27 @@ body::after{
       </button>
     </form>
 
-    <div class="footer">
-      <p>Plateforme Admin <strong>v2.0</strong> — Tholad Group © {{ date('Y') }}</p>
+    <div class="security-badge">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      Connexion sécurisée SSL
     </div>
-    <div class="security-badge">Connexion sécurisée SSL</div>
 
   </div>
 </div>
+
+<!-- Footer -->
+<footer>
+  <div class="footer-logo">
+    <img src="{{ asset('images/tholad-logo.png') }}"
+         onerror="this.style.display='none'"
+         alt="Tholad Group">
+    <span>ImmoStay</span>
+  </div>
+  <p>
+    © {{ date('Y') }} <strong>ImmoStay</strong> — Tholad Group.
+    Développé avec ❤️ par <strong>Basile NGASSAKI</strong>
+  </p>
+</footer>
 
 </body>
 </html>
