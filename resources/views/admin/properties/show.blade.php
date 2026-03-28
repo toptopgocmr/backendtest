@@ -35,15 +35,95 @@
   <div class="card" style="grid-column:span 2">
     <div class="card-header"><h3>📋 Informations</h3></div>
     <div style="padding:20px">
+      @php
+        $habitTypes  = ['appartement','villa','studio','maison','chambre'];
+        $bureauTypes = ['bureau','salle_reunion'];
+        $feteTypes   = ['salle_fete'];
+        $terrainTypes= ['terrain','entrepot','commerce'];
+        $type = $property->type;
+
+        $periodeLabels = [
+          'heure'   => 'heure',
+          'nuit'    => 'nuit',
+          'jour'    => 'jour',
+          'semaine' => 'semaine',
+          'mois'    => 'mois',
+          'an'      => 'an',
+          'total'   => 'prix total',
+        ];
+        $periodeLabel = $periodeLabels[$property->price_period] ?? $property->price_period;
+
+        $typeLabels = [
+          'appartement'  => 'Appartement',
+          'villa'        => 'Villa',
+          'studio'       => 'Studio',
+          'maison'       => 'Maison',
+          'chambre'      => 'Chambre',
+          'bureau'       => 'Bureau',
+          'salle_reunion'=> 'Salle de réunion',
+          'salle_fete'   => 'Salle des fêtes',
+          'terrain'      => 'Terrain',
+          'entrepot'     => 'Entrepôt',
+          'commerce'     => 'Commerce',
+        ];
+        $typeLabel = $typeLabels[$type] ?? ucfirst($type);
+      @endphp
+
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
-        <div><div style="font-size:11px;color:var(--txt3)">TYPE</div><div style="font-weight:600">{{ ucfirst($property->type) }}</div></div>
-        <div><div style="font-size:11px;color:var(--txt3)">PRIX</div><div style="font-weight:700;color:var(--gold)">{{ number_format($property->price,0,',',' ') }} {{ $property->currency }} / {{ $property->price_period }}</div></div>
-        <div><div style="font-size:11px;color:var(--txt3)">CHAMBRES</div><div style="font-weight:600">{{ $property->bedrooms }}</div></div>
-        <div><div style="font-size:11px;color:var(--txt3)">SALLES DE BAIN</div><div style="font-weight:600">{{ $property->bathrooms }}</div></div>
-        <div><div style="font-size:11px;color:var(--txt3)">CAPACITÉ MAX</div><div style="font-weight:600">{{ $property->max_guests }} personnes</div></div>
-        <div><div style="font-size:11px;color:var(--txt3)">SURFACE</div><div style="font-weight:600">{{ $property->area ? $property->area.' m²' : '—' }}</div></div>
-        <div><div style="font-size:11px;color:var(--txt3)">NOTE MOYENNE</div><div style="font-weight:600">⭐ {{ $property->rating }} ({{ $property->reviews_count }} avis)</div></div>
-        <div><div style="font-size:11px;color:var(--txt3)">VUES</div><div style="font-weight:600">👁 {{ $property->views_count }}</div></div>
+
+        {{-- Type & Prix : toujours affichés --}}
+        <div><div style="font-size:11px;color:var(--txt3)">TYPE</div><div style="font-weight:600">{{ $typeLabel }}</div></div>
+        <div>
+          <div style="font-size:11px;color:var(--txt3)">PRIX</div>
+          <div style="font-weight:700;color:var(--gold)">
+            {{ number_format($property->price,0,',',' ') }} {{ $property->currency }} / {{ $periodeLabel }}
+            @if($property->price_period === 'heure' && $property->duration_hours)
+              <span style="font-size:12px;color:var(--txt3);font-weight:400"> (min. {{ $property->duration_hours }}h)</span>
+            @endif
+          </div>
+        </div>
+
+        {{-- Champs HABITATION --}}
+        @if(in_array($type, $habitTypes))
+          <div><div style="font-size:11px;color:var(--txt3)">CHAMBRES</div><div style="font-weight:600">{{ $property->bedrooms ?? '—' }}</div></div>
+          <div><div style="font-size:11px;color:var(--txt3)">SALLES DE BAIN</div><div style="font-weight:600">{{ $property->bathrooms ?? '—' }}</div></div>
+          <div><div style="font-size:11px;color:var(--txt3)">PERSONNES MAX</div><div style="font-weight:600">{{ $property->max_guests ?? '—' }} personnes</div></div>
+          <div><div style="font-size:11px;color:var(--txt3)">SURFACE</div><div style="font-weight:600">{{ $property->area ? $property->area.' m²' : '—' }}</div></div>
+          @if($property->floor)
+          <div><div style="font-size:11px;color:var(--txt3)">ÉTAGE</div><div style="font-weight:600">{{ $property->floor === 'rdc' ? 'Rez-de-chaussée' : $property->floor.'ème étage' }}</div></div>
+          @endif
+          @if($property->view_type)
+          <div><div style="font-size:11px;color:var(--txt3)">VUE</div><div style="font-weight:600">{{ ucfirst($property->view_type) }}</div></div>
+          @endif
+        @endif
+
+        {{-- Champs BUREAU / SALLE DE RÉUNION --}}
+        @if(in_array($type, $bureauTypes) || in_array($type, $feteTypes))
+          <div><div style="font-size:11px;color:var(--txt3)">CAPACITÉ</div><div style="font-weight:600">{{ $property->capacity ?? '—' }} personnes</div></div>
+          <div><div style="font-size:11px;color:var(--txt3)">SURFACE</div><div style="font-weight:600">{{ $property->area ? $property->area.' m²' : '—' }}</div></div>
+          @if($property->floor)
+          <div><div style="font-size:11px;color:var(--txt3)">ÉTAGE</div><div style="font-weight:600">{{ $property->floor === 'rdc' ? 'Rez-de-chaussée' : $property->floor.'ème étage' }}</div></div>
+          @endif
+          @if($property->workstations)
+          <div><div style="font-size:11px;color:var(--txt3)">POSTES DE TRAVAIL</div><div style="font-weight:600">{{ $property->workstations }}</div></div>
+          @endif
+        @endif
+
+        {{-- Champs TERRAIN / ENTREPÔT / COMMERCE --}}
+        @if(in_array($type, $terrainTypes))
+          <div><div style="font-size:11px;color:var(--txt3)">SUPERFICIE</div><div style="font-weight:600">{{ $property->area ? number_format($property->area,0,',',' ').' m²' : '—' }}</div></div>
+          @if($property->terrain_type)
+          <div><div style="font-size:11px;color:var(--txt3)">TYPE DE TERRAIN</div><div style="font-weight:600">{{ ucfirst($property->terrain_type) }}</div></div>
+          @endif
+          @if($property->land_title)
+          <div><div style="font-size:11px;color:var(--txt3)">TITRE FONCIER</div><div style="font-weight:600">{{ $property->land_title }}</div></div>
+          @endif
+        @endif
+
+        {{-- Note & Vues : toujours affichées --}}
+        <div><div style="font-size:11px;color:var(--txt3)">NOTE MOYENNE</div><div style="font-weight:600">⭐ {{ $property->rating ?? 0 }} ({{ $property->reviews_count ?? 0 }} avis)</div></div>
+        <div><div style="font-size:11px;color:var(--txt3)">VUES</div><div style="font-weight:600">👁 {{ $property->views_count ?? 0 }}</div></div>
+
       </div>
       <div style="border-top:1px solid var(--border);padding-top:14px">
         <div style="font-size:12px;color:var(--txt3);margin-bottom:6px">DESCRIPTION</div>
