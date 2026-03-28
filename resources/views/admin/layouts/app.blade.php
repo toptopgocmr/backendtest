@@ -9,7 +9,6 @@
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <style>
 :root {
-  /* Charte graphique Tholad Group */
   --tholad-blue:#0047FF;
   --tholad-blue-dark:#1A0099;
   --tholad-red:#8B0000;
@@ -31,7 +30,6 @@
 body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt);display:flex;flex-direction:column;min-height:100vh;}
 .app-wrapper{display:flex;flex:1;}
 
-/* Barre couleurs Tholad en haut */
 .tholad-topbar{
   position:fixed;top:0;left:0;right:0;z-index:200;
   height:3px;
@@ -185,7 +183,6 @@ select.form-control{cursor:pointer;}
 </head>
 <body>
 
-<!-- Barre couleurs Tholad -->
 <div class="tholad-topbar"></div>
 
 <div class="app-wrapper">
@@ -204,6 +201,7 @@ select.form-control{cursor:pointer;}
     </div>
   </div>
 
+  {{-- ── SIDEBAR MIS À JOUR (Étape 8 du guide) ── --}}
   <nav class="sidebar-menu">
     <div class="menu-section">Principal</div>
     <a href="{{ route('admin.dashboard') }}" class="menu-item {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">
@@ -211,28 +209,68 @@ select.form-control{cursor:pointer;}
     </a>
 
     <div class="menu-section">Gestion</div>
+
+    {{-- Propriétés --}}
     <a href="{{ route('admin.properties.index') }}" class="menu-item {{ request()->routeIs('admin.properties.*') ? 'active' : '' }}">
       <i class="fas fa-building"></i> Propriétés
     </a>
+
+    {{-- Propriétaires --}}
+    <a href="{{ route('admin.owners.index') }}" class="menu-item {{ request()->routeIs('admin.owners.*') ? 'active' : '' }}">
+      <i class="fas fa-home"></i> Propriétaires
+      @php $pendingOwners = \App\Models\OwnerProfile::where('status','en_attente')->count(); @endphp
+      @if($pendingOwners > 0)<span class="badge">{{ $pendingOwners }}</span>@endif
+    </a>
+
+    {{-- Réservations --}}
     <a href="{{ route('admin.bookings.index') }}" class="menu-item {{ request()->routeIs('admin.bookings.*') ? 'active' : '' }}">
       <i class="fas fa-calendar-check"></i> Réservations
       @php $pending = \App\Models\Booking::where('status','en_attente')->count(); @endphp
       @if($pending > 0)<span class="badge">{{ $pending }}</span>@endif
     </a>
+
+    {{-- Paiements --}}
     <a href="{{ route('admin.payments.index') }}" class="menu-item {{ request()->routeIs('admin.payments.*') ? 'active' : '' }}">
       <i class="fas fa-credit-card"></i> Paiements
     </a>
+
+    {{-- Utilisateurs --}}
     <a href="{{ route('admin.users.index') }}" class="menu-item {{ request()->routeIs('admin.users.*') ? 'active' : '' }}">
       <i class="fas fa-users"></i> Utilisateurs
     </a>
+
+    {{-- Avis --}}
     <a href="{{ route('admin.reviews.index') }}" class="menu-item {{ request()->routeIs('admin.reviews.*') ? 'active' : '' }}">
       <i class="fas fa-star"></i> Avis
     </a>
 
+    <div class="menu-section">TholadImmo</div>
+
+    {{-- Agents --}}
+    <a href="{{ route('admin.agents.index') }}" class="menu-item {{ request()->routeIs('admin.agents.*') ? 'active' : '' }}">
+      <i class="fas fa-id-badge"></i> Agents
+    </a>
+
+    {{-- Stocks --}}
+    <a href="{{ route('admin.stock.index') }}" class="menu-item {{ request()->routeIs('admin.stock.*') ? 'active' : '' }}">
+      <i class="fas fa-boxes"></i> Stocks
+      @php
+        $stockAlerts = 0;
+        try { $stockAlerts = \App\Models\StockAlert::where('is_resolved',false)->where('is_read',false)->count(); } catch(\Exception $e) {}
+      @endphp
+      @if($stockAlerts > 0)
+        <span class="badge" style="background:#F59E0B;">{{ $stockAlerts }}</span>
+      @endif
+    </a>
+
     <div class="menu-section">Business</div>
+
+    {{-- Comptabilité --}}
     <a href="{{ route('admin.accounting.index') }}" class="menu-item {{ request()->routeIs('admin.accounting.*') ? 'active' : '' }}">
       <i class="fas fa-coins"></i> Comptabilité
     </a>
+
+    {{-- Support --}}
     <a href="{{ route('admin.support.index') }}" class="menu-item {{ request()->routeIs('admin.support.*') ? 'active' : '' }}">
       <i class="fas fa-headset"></i> Support
       @php $open = \App\Models\SupportTicket::where('status','ouvert')->count(); @endphp
@@ -247,7 +285,7 @@ select.form-control{cursor:pointer;}
        onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
       <i class="fas fa-sign-out-alt"></i> Déconnexion
     </a>
-    <form id="logout-form" action="{{ route('admin.logout') }}" method="POST" class="d-none">@csrf</form>
+    <form id="logout-form" action="{{ route('admin.logout') }}" method="POST" style="display:none;">@csrf</form>
   </nav>
 
   <div class="sidebar-bottom">
@@ -269,7 +307,8 @@ select.form-control{cursor:pointer;}
       <div class="topbar-btn"><i class="fas fa-search" style="font-size:14px"></i></div>
       <a href="{{ route('admin.support.index') }}" class="topbar-btn">
         <i class="fas fa-bell" style="font-size:14px"></i>
-        <span class="notif-dot"></span>
+        @php $hasNotif = \App\Models\SupportTicket::where('status','ouvert')->exists(); @endphp
+        @if($hasNotif)<span class="notif-dot"></span>@endif
       </a>
       <div class="admin-avatar" style="cursor:pointer">{{ strtoupper(substr(Auth::guard('admin')->user()->name ?? 'A', 0, 1)) }}</div>
     </div>

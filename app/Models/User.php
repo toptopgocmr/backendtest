@@ -7,10 +7,6 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
-/**
- * FIX #9 — 'status' remplacé par 'is_active' (conforme à la migration)
- * La migration a is_active (boolean) et non un champ 'status'
- */
 class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable;
@@ -25,10 +21,10 @@ class User extends Authenticatable
         'avatar',
         'role',
         'is_verified',
-        'is_active',      // FIX: était 'status' qui n'existe pas dans la migration
+        'is_active',
         'otp_code',
         'otp_expires_at',
-        'device_token',   // = fcm_token dans la migration
+        'device_token',
         'last_login_at',
     ];
 
@@ -42,13 +38,21 @@ class User extends Authenticatable
     ];
 
     // ── Relations ────────────────────────────────────────────────
-    public function properties()    { return $this->hasMany(Property::class, 'owner_id'); }
-    public function bookings()      { return $this->hasMany(Booking::class); }
-    public function favorites()     { return $this->hasMany(Favorite::class); }
-    public function reviews()       { return $this->hasMany(Review::class); }
-    public function notifications() { return $this->hasMany(Notification::class); }
-    public function payments()      { return $this->hasMany(Payment::class); }
-    public function supportTickets(){ return $this->hasMany(SupportTicket::class); }
+    public function properties()     { return $this->hasMany(Property::class, 'owner_id'); }
+    public function bookings()       { return $this->hasMany(Booking::class); }
+    public function favorites()      { return $this->hasMany(Favorite::class); }
+    public function reviews()        { return $this->hasMany(Review::class); }
+    public function notifications()  { return $this->hasMany(Notification::class); }
+    public function payments()       { return $this->hasMany(Payment::class); }
+    public function supportTickets() { return $this->hasMany(SupportTicket::class); }
+
+    /**
+     * FIX — Relation propriétaire (manquait dans le fichier original)
+     */
+    public function ownerProfile()
+    {
+        return $this->hasOne(OwnerProfile::class);
+    }
 
     // ── Helpers ──────────────────────────────────────────────────
     public function isAdmin()  { return $this->role === 'admin'; }
