@@ -739,6 +739,55 @@ function addCustomAmenity() {
     </button>`;
   document.getElementById('custom-amenities-list').appendChild(div);
 }
+
+// ── Gestion période à l'heure ────────────────────────────────────
+const pricePeriodSelect   = document.getElementById('price-period-select');
+const heuresField         = document.getElementById('heures-field');
+const durationHoursSelect = document.getElementById('duration-hours-select');
+const tarifApercuText     = document.getElementById('tarif-apercu-text');
+const priceInput          = document.querySelector('input[name="price"]');
+
+function updateTarifApercu() {
+  const prix   = parseFloat(priceInput?.value) || 0;
+  const heures = parseInt(durationHoursSelect?.value) || 0;
+  const devise = document.querySelector('select[name="currency"]')?.value || 'XAF';
+
+  if (prix > 0 && heures > 0) {
+    const formatted = new Intl.NumberFormat('fr-FR').format(prix);
+    tarifApercuText.textContent = `${formatted} ${devise} / ${heures}h`;
+    tarifApercuText.style.color = 'var(--navy)';
+    tarifApercuText.style.fontWeight = '600';
+  } else {
+    tarifApercuText.textContent = 'Saisissez prix + heures';
+    tarifApercuText.style.color = 'var(--txt3)';
+    tarifApercuText.style.fontWeight = '400';
+  }
+}
+
+// Afficher/masquer le champ heures selon la période choisie
+pricePeriodSelect?.addEventListener('change', function() {
+  if (this.value === 'heure') {
+    heuresField.style.display = '';
+    durationHoursSelect.required = true;
+  } else {
+    heuresField.style.display = 'none';
+    durationHoursSelect.required = false;
+    durationHoursSelect.value = '';
+  }
+  updateTarifApercu();
+});
+
+// Mettre à jour l'aperçu en temps réel
+durationHoursSelect?.addEventListener('change', updateTarifApercu);
+priceInput?.addEventListener('input', updateTarifApercu);
+document.querySelector('select[name="currency"]')?.addEventListener('change', updateTarifApercu);
+
+// Init au chargement si old value = heure
+if (pricePeriodSelect?.value === 'heure') {
+  heuresField.style.display = '';
+  durationHoursSelect.required = true;
+  updateTarifApercu();
+}
 </script>
 
 @endsection
