@@ -46,6 +46,9 @@ Route::prefix('v1')->group(function () {
     Route::post('payments/peex/callback', [PaymentController::class, 'peexCallback'])
         ->withoutMiddleware(['auth:sanctum']);
 
+    // SUPPORT AGENT — Public (Flutter en a besoin avant connexion)
+    Route::get('support/agent', [SupportController::class, 'agent']);
+
     // PROTECTED
     Route::middleware('auth:sanctum')->group(function () {
 
@@ -59,12 +62,6 @@ Route::prefix('v1')->group(function () {
             Route::post('avatar',  [ProfileController::class, 'updateAvatar']);
             Route::put('password', [ProfileController::class, 'changePassword']);
         });
-
-        // ── FIX: SUPPORT AGENT ─────────────────────────────────────────────
-        // Retourne l'UUID de l'admin/agent pour que Flutter puisse
-        // envoyer des messages au bon destinataire (évite erreur 422)
-        Route::get('support/agent', [SupportController::class, 'agent']);
-        // ──────────────────────────────────────────────────────────────────
 
         // PROPERTIES
         Route::post('properties',             [PropertyController::class, 'store']);
