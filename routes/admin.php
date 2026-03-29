@@ -62,6 +62,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('/',          [UserController::class, 'index'])->name('users.index');
             Route::get('{id}',       [UserController::class, 'show'])->name('users.show');
             Route::put('{id}/toggle',[UserController::class, 'toggle'])->name('users.toggle');
+            Route::put('{id}/verify', [UserController::class, 'verify'])->name('users.verify');
         });
 
         // ── PROPRIÉTAIRES ──────────────────────────────────────

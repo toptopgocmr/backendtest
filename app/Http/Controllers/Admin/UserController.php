@@ -36,10 +36,27 @@ class UserController extends Controller
     public function toggle(string $id)
     {
         $user = User::findOrFail($id);
-        $user->update(['is_active' => !$user->is_active]); // FIX: is_active pas status
+        $user->update(['is_active' => !$user->is_active]);
 
         $msg = $user->is_active ? 'Utilisateur activé.' : 'Utilisateur suspendu.';
 
         return back()->with('success', $msg);
+    }
+
+    /**
+     * Vérifier manuellement un compte depuis l'admin.
+     * is_verified = true + is_active = true → le client peut se connecter immédiatement.
+     */
+    public function verify(string $id)
+    {
+        $user = User::findOrFail($id);
+        $user->update([
+            'is_verified'    => true,
+            'is_active'      => true,
+            'otp_code'       => null,
+            'otp_expires_at' => null,
+        ]);
+
+        return back()->with('success', "Compte de {$user->name} vérifié et activé.");
     }
 }

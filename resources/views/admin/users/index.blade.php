@@ -26,6 +26,12 @@
   </div>
 </div>
 
+@if(session('success'))
+  <div style="background:#d4edda;border:1px solid #c3e6cb;color:#155724;padding:12px 16px;border-radius:8px;margin-bottom:16px">
+    ✅ {{ session('success') }}
+  </div>
+@endif
+
 <div class="card">
   <table>
     <thead><tr><th>Utilisateur</th><th>Téléphone</th><th>Rôle</th><th>Vérifié</th><th>Inscrit</th><th>Statut</th><th>Actions</th></tr></thead>
@@ -50,7 +56,19 @@
         @php $roleColors=['client'=>'var(--blue)','owner'=>'var(--gold)','admin'=>'var(--coral)']; @endphp
         <span style="color:{{ $roleColors[$user->role] ?? '#666' }};font-weight:700;font-size:12px;text-transform:uppercase">{{ $user->role }}</span>
       </td>
-      <td>@if($user->is_verified)<span style="color:var(--green)">✓ Vérifié</span>@else<span style="color:var(--txt3)">En attente</span>@endif</td>
+      <td>
+        @if($user->is_verified)
+          <span style="color:var(--green)">✓ Vérifié</span>
+        @else
+          {{-- Bouton vérification manuelle admin --}}
+          <form action="{{ route('admin.users.verify', $user->id) }}" method="POST" style="display:inline">
+            @csrf @method('PUT')
+            <button type="submit" class="btn btn-success btn-sm" title="Vérifier ce compte manuellement">
+              ✓ Vérifier
+            </button>
+          </form>
+        @endif
+      </td>
       <td style="font-size:12px;color:var(--txt3)">{{ $user->created_at->format('d/m/Y') }}</td>
       <td><span class="badge-status {{ $user->is_active ? 'actif' : 'annulé' }}">{{ $user->is_active ? 'actif' : 'suspendu' }}</span></td>
       <td>
