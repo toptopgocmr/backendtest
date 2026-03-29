@@ -45,6 +45,26 @@
       <i class="fas fa-star"></i> Avis
     </a>
 
+    {{-- ── MESSAGES (conversations Flutter) ── AJOUTÉ ──────────── --}}
+    <a href="{{ route('admin.messages.index') }}" class="menu-item {{ request()->routeIs('admin.messages.*') ? 'active' : '' }}">
+      <i class="fas fa-comments"></i> Messages
+      @php
+        $unreadMsgs = 0;
+        try {
+          // Compter les messages non lus envoyés à l'admin
+          $adminIds = \App\Models\User::where('role','admin')->pluck('id');
+          $unreadMsgs = \App\Models\Message::whereIn('conversation_id',
+            \App\Models\Conversation::where(function($q) use ($adminIds) {
+              $q->whereIn('user1_id', $adminIds)->orWhereIn('user2_id', $adminIds);
+            })->pluck('id')
+          )->whereNotIn('sender_id', $adminIds)->where('is_read', false)->count();
+        } catch(\Exception $e) {}
+      @endphp
+      @if($unreadMsgs > 0)
+        <span class="badge" style="background:#3B82F6;">{{ $unreadMsgs }}</span>
+      @endif
+    </a>
+
     <div class="menu-section">TholadImmo</div>
 
     {{-- Agents --}}

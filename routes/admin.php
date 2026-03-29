@@ -14,6 +14,7 @@ use App\Http\Controllers\Admin\SupportController;
 use App\Http\Controllers\Admin\OwnerController;
 use App\Http\Controllers\Admin\AgentController;
 use App\Http\Controllers\Admin\StockController;
+use App\Http\Controllers\Admin\MessageController; // ← AJOUTÉ
 
 Route::prefix('admin')->name('admin.')->group(function () {
 
@@ -120,6 +121,13 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('{id}',       [SupportController::class, 'show'])->name('support.show');
             Route::post('{id}/reply',[SupportController::class, 'reply'])->name('support.reply');
             Route::put('{id}/close', [SupportController::class, 'close'])->name('support.close');
+        });
+
+        // ── MESSAGES (CONVERSATIONS FLUTTER) ── AJOUTÉ ─────────
+        Route::prefix('messages')->name('messages.')->group(function () {
+            Route::get('/',              [MessageController::class, 'index'])->name('index');
+            Route::get('{id}',           [MessageController::class, 'show'])->name('show');
+            Route::post('{id}/reply',    [MessageController::class, 'reply'])->name('reply');
         });
 
         // SETTINGS
