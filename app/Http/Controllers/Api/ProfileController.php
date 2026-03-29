@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Validator;
 
 class ProfileController extends Controller
@@ -21,8 +22,8 @@ class ProfileController extends Controller
 
         $v = Validator::make($request->all(), [
             'name'         => 'sometimes|string|max:191',
-            'first_name'   => 'sometimes|nullable|string|max:100',   // FIX: accepter first_name
-            'last_name'    => 'sometimes|nullable|string|max:100',   // FIX: accepter last_name
+            'first_name'   => 'sometimes|nullable|string|max:100',
+            'last_name'    => 'sometimes|nullable|string|max:100',
             'email'        => 'sometimes|nullable|email|unique:users,email,' . $user->id,
             'phone'        => 'sometimes|string|unique:users,phone,' . $user->id,
             'country_code' => 'sometimes|string',
@@ -33,7 +34,6 @@ class ProfileController extends Controller
             return response()->json(['success' => false, 'errors' => $v->errors()], 422);
         }
 
-        // FIX: Reconstruire 'name' depuis first_name + last_name si fournis
         $updateData = $request->only(['email', 'phone', 'country_code', 'country']);
 
         if ($request->has('first_name') || $request->has('last_name')) {
@@ -58,7 +58,51 @@ class ProfileController extends Controller
         $request->validate(['avatar' => 'required|image|max:4096']);
         $user = $request->user();
 
-        // Supprimer l'ancien avatar
+        // ── Tentative upload Cloudinary (si configuré) ──────────────────
+        $cloudName = config('services.cloudinary.cloud_name');
+        $apiKey    = config('services.cloudinary.api_key');
+        $apiSecret = config('services.cloudinary.api_secret');
+
+        if ($cloudName && $apiKey && $apiSecret) {
+            try {
+                $file      = $request->file('avatar');
+                $timestamp = time();
+                $params    = ['timestamp' => $timestamp, 'folder' => 'tholadimmo/avatars'];
+                ksort($params);
+                $sigStr    = http_build_query($params) . $apiSecret;
+                $signature = sha1($sigStr);
+
+                $response = Http::attach(
+                    'file',
+                    file_get_contents($file->getRealPath()),
+                    $file->getClientOriginalName()
+                )->post("https://api.cloudinary.com/v1_1/{$cloudName}/image/upload", [
+                    'api_key'   => $apiKey,
+                    'timestamp' => $timestamp,
+                    'signature' => $signature,
+                    'folder'    => 'tholadimmo/avatars',
+                ]);
+
+                if ($response->successful()) {
+                    $avatarUrl = $response->json('secure_url');
+                    $user->update(['avatar' => $avatarUrl]);
+
+                    return response()->json([
+                        'success'    => true,
+                        'avatar_url' => $avatarUrl,
+                        'data'       => $this->userResource($user->fresh()),
+                    ]);
+                }
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('[Avatar] Cloudinary upload failed: ' . $e->getMessage());
+                // Fallback vers storage local
+            }
+        }
+
+        // ── Fallback : storage local (Railway filesystem éphémère) ──────
+        // ⚠️ Les fichiers seront perdus au redémarrage Railway.
+        // Configurez CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET
+        // dans les variables Railway pour une solution persistante.
         if ($user->avatar && !str_starts_with($user->avatar, 'http')) {
             Storage::disk('public')->delete($user->avatar);
         }
@@ -66,10 +110,9 @@ class ProfileController extends Controller
         $path = $request->file('avatar')->store('avatars', 'public');
         $user->update(['avatar' => $path]);
 
-        // FIX: retourner 'avatar_url' (URL complète) pour que Flutter puisse l'utiliser
         return response()->json([
             'success'    => true,
-            'avatar_url' => $user->avatar_url,  // Accessor défini dans le modèle User
+            'avatar_url' => $user->avatar_url,
             'data'       => $this->userResource($user),
         ]);
     }
@@ -101,7 +144,6 @@ class ProfileController extends Controller
 
     private function userResource($user): array
     {
-        // FIX: retourner first_name et last_name séparément
         $nameParts  = explode(' ', trim($user->name ?? ''));
         $firstName  = $nameParts[0] ?? '';
         $lastName   = count($nameParts) > 1 ? implode(' ', array_slice($nameParts, 1)) : '';
@@ -109,13 +151,13 @@ class ProfileController extends Controller
         return [
             'id'           => $user->id,
             'name'         => $user->name,
-            'first_name'   => $firstName,       // FIX: champ ajouté
-            'last_name'    => $lastName,        // FIX: champ ajouté
+            'first_name'   => $firstName,
+            'last_name'    => $lastName,
             'email'        => $user->email,
             'phone'        => $user->phone,
             'country_code' => $user->country_code,
             'country'      => $user->country,
-            'avatar_url'   => $user->avatar_url,  // FIX: URL complète
+            'avatar_url'   => $user->avatar_url,
             'avatar'       => $user->avatar,
             'role'         => $user->role,
             'is_verified'  => $user->is_verified,

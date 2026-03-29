@@ -111,7 +111,19 @@ class MessageController extends Controller
 
         $conv->update(['last_message' => $request->content, 'last_message_at' => now()]);
 
-        return response()->json(['success' => true, 'data' => $message], 201);
+        // FIX: retourner une ressource propre (même format que thread())
+        // Le modèle Message a $timestamps = false → utiliser now() pour created_at
+        return response()->json([
+            'success' => true,
+            'data'    => [
+                'id'         => $message->id,
+                'content'    => $message->content,
+                'type'       => $message->type,
+                'is_mine'    => true,
+                'is_read'    => false,
+                'created_at' => $message->created_at ?? now(),
+            ],
+        ], 201);
     }
 
     public function markRead(Request $request, string $id)
