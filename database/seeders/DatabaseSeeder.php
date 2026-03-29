@@ -136,8 +136,8 @@ class DatabaseSeeder extends Seeder
                 'currency' => 'XAF',
                 'category' => 'maintenance',
                 'description' => 'Réparation climatisation — Villa Luxe',
-                'reference' => 'EXP-2025-AA001', // ✅ correction
-                'booking_id' => null,            // ✅ correction
+                'reference' => 'EXP-2025-AA001',
+                'booking_id' => null,
                 'date' => now(),
                 'created_at' => now(),
                 'updated_at' => now()
@@ -154,6 +154,11 @@ class DatabaseSeeder extends Seeder
                 'created_at' => now(),
                 'updated_at' => now()
             ],
+        ]);
+
+        // Créer/mettre à jour l'utilisateur support TholadImmo
+        $this->call([
+            SupportUserSeeder::class,
         ]);
 
         $this->command->info('✅ Seed OK');
