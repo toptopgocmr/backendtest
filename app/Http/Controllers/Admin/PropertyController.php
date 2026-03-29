@@ -14,7 +14,16 @@ use Illuminate\Support\Facades\Log;
 
 class PropertyController extends Controller
 {
-    // ─── Upload image : Cloudinary en prod, local en dev ───────────────────
+    /**
+     * Upload une image.
+     * - En production (CLOUDINARY_CLOUD_NAME défini) → Cloudinary, retourne https://res.cloudinary.com/...
+     * - En dev (pas de Cloudinary) → stockage local, retourne l'URL ABSOLUE via asset()
+     *
+     * FIX : Storage::url() retournait un chemin relatif (/storage/...) qui se retrouvait
+     * concaténé avec le domaine admin, produisant des URLs cassées du type
+     * /admin/backendtholad-production.up.railway.app/storage/...
+     * On utilise désormais asset(Storage::url($path)) pour forcer une URL absolue.
+     */
     private function uploadImage($file, int $propertyId): string
     {
         $cloudName = config('services.cloudinary.cloud_name');
@@ -25,12 +34,13 @@ class PropertyController extends Controller
                 return $cloudinary->upload($file, "immostay/properties/{$propertyId}");
             } catch (\Throwable $e) {
                 Log::error('Cloudinary upload failed: ' . $e->getMessage());
+                // Fallback vers stockage local si Cloudinary échoue
             }
         }
 
-        // Fallback : stockage local (dev)
+        // Stockage local (dev ou fallback) — URL absolue obligatoire
         $path = $file->store('properties/' . $propertyId, 'public');
-        return Storage::url($path);
+        return asset(Storage::url($path)); // FIX: asset() force l'URL absolue
     }
 
     public function index(Request $request)
@@ -59,16 +69,18 @@ class PropertyController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'title'       => 'required|string|max:200',
-            'description' => 'required|string',
-            'owner_id'    => 'required|exists:users,id',
-            'type'        => 'required|string',
-            'price'       => 'required|numeric|min:0',
-            'price_period'=> 'required|string',
-            'city'        => 'required|string',
-            'country'     => 'required|string',
-            'images'      => 'nullable|array|max:20',
-            'images.*'    => 'nullable|image|max:5120',
+            'title'         => 'required|string|max:200',
+            'description'   => 'required|string',
+            'owner_id'      => 'required|exists:users,id',
+            'type'          => 'required|string',
+            'price'         => 'required|numeric|min:0',
+            'price_period'  => 'required|string',
+            'city'          => 'required|string',
+            'country'       => 'required|string',
+            'images'        => 'nullable|array|max:20',
+            'images.*'      => 'nullable|image|max:5120',
+            // FIX: durée requise seulement si price_period = heure
+            'duration_hours'=> 'nullable|required_if:price_period,heure|integer|min:1|max:24',
         ]);
 
         $property = Property::create([
@@ -87,61 +99,89 @@ class PropertyController extends Controller
             'longitude'         => $request->longitude,
             'bedrooms'          => $request->bedrooms ?? 1,
             'bathrooms'         => $request->bathrooms ?? 1,
-            'area'              => $request->area,
+            'area'              => $request->area ?? $request->area_terrain,  // terrain utilise area_terrain
             'max_guests'        => $request->max_guests ?? 2,
             'status'            => $request->status ?? 'disponible',
             'is_featured'       => $request->has('is_featured'),
             'is_approved'       => (bool)($request->is_approved ?? false),
+            // ── Champs supplémentaires (migration 000005 + 000001) ──────────
+            'deposit'           => $request->deposit ?? 0,
+            'contact_phone'     => $this->buildPhone($request->get('phone-indicatif-prop', '+242'), $request->contact_phone),
+            'contact_email'     => $request->contact_email,
+            'view_type'         => $request->view_type,
+            'rules'             => $request->rules,
+            'capacity'          => $request->capacity,
+            'floor'             => $request->floor ?? $request->floor_bureau,
+            'workstations'      => $request->workstations,
+            'terrain_type'      => $request->terrain_type,
+            'land_title'        => $request->land_title,
+            'duration_hours'    => $request->price_period === 'heure' ? $request->duration_hours : null,
         ]);
 
-        // Upload images → Cloudinary
+        // ── Upload images ────────────────────────────────────────────────
         if ($request->hasFile('images')) {
             $sort = 0;
             foreach ($request->file('images') as $file) {
-                $url = $this->uploadImage($file, $property->id);
-                PropertyImage::create([
-                    'property_id' => $property->id,
-                    'url'         => $url,
-                    'is_primary'  => $sort === 0,
-                    'sort_order'  => $sort++,
-                ]);
+                if (!$file->isValid()) continue;
+                try {
+                    $url = $this->uploadImage($file, $property->id);
+                    PropertyImage::create([
+                        'property_id' => $property->id,
+                        'url'         => $url,
+                        'is_primary'  => $sort === 0,
+                        'sort_order'  => $sort++,
+                    ]);
+                } catch (\Throwable $e) {
+                    Log::error("Image upload failed for property {$property->id}: " . $e->getMessage());
+                    // On continue — les autres images peuvent réussir
+                }
             }
         }
 
-        // Save amenities as boolean flags
-        $amenityFields = [
-            'has_wifi','has_electricity','has_water','has_generator','has_security','has_parking',
-            'has_clim','has_heating','has_pool','has_garden','has_elevator','has_balcony',
-            'has_kitchen','has_laundry','has_tv','has_gym',
-            'has_projector','has_visio','has_whiteboard','has_reception','has_kitchen_pro','has_printing',
-            'has_sound_system','has_lighting','has_stage','has_dancefloor','has_catering','has_photo_service',
+        // ── Équipements ──────────────────────────────────────────────────
+        $amenityMap = [
+            'has_wifi'         => 'WiFi',
+            'has_electricity'  => 'Électricité',
+            'has_water'        => 'Eau courante',
+            'has_generator'    => 'Groupe électrogène',
+            'has_security'     => 'Gardiennage',
+            'has_parking'      => 'Parking',
+            'has_clim'         => 'Climatisation',
+            'has_heating'      => 'Chauffage',
+            'has_pool'         => 'Piscine',
+            'has_garden'       => 'Jardin',
+            'has_elevator'     => 'Ascenseur',
+            'has_balcony'      => 'Balcon',
+            'has_kitchen'      => 'Cuisine équipée',
+            'has_laundry'      => 'Lave-linge',
+            'has_tv'           => 'Télévision',
+            'has_gym'          => 'Salle de sport',
+            'has_projector'    => 'Vidéoprojecteur',
+            'has_visio'        => 'Visioconférence',
+            'has_whiteboard'   => 'Tableau blanc',
+            'has_reception'    => "Salle d'accueil",
+            'has_kitchen_pro'  => 'Cuisine pro',
+            'has_printing'     => 'Imprimante',
+            'has_sound_system' => 'Sono',
+            'has_lighting'     => 'Éclairage déco',
+            'has_stage'        => 'Scène',
+            'has_dancefloor'   => 'Piste de danse',
+            'has_catering'     => 'Traiteur',
+            'has_photo_service'=> 'Photo/Vidéo',
         ];
 
-        $amenityLabels = [
-            'has_wifi'=>'WiFi','has_electricity'=>'Électricité','has_water'=>'Eau courante',
-            'has_generator'=>'Groupe électrogène','has_security'=>'Gardiennage','has_parking'=>'Parking',
-            'has_clim'=>'Climatisation','has_heating'=>'Chauffage','has_pool'=>'Piscine',
-            'has_garden'=>'Jardin','has_elevator'=>'Ascenseur','has_balcony'=>'Balcon',
-            'has_kitchen'=>'Cuisine équipée','has_laundry'=>'Lave-linge','has_tv'=>'Télévision','has_gym'=>'Salle de sport',
-            'has_projector'=>'Vidéoprojecteur','has_visio'=>'Visioconférence','has_whiteboard'=>'Tableau blanc',
-            'has_reception'=>"Salle d'accueil",'has_kitchen_pro'=>'Cuisine pro','has_printing'=>'Imprimante',
-            'has_sound_system'=>'Sono','has_lighting'=>'Éclairage déco','has_stage'=>'Scène',
-            'has_dancefloor'=>'Piste de danse','has_catering'=>'Traiteur','has_photo_service'=>'Photo/Vidéo',
-        ];
-
-        foreach ($amenityFields as $field) {
+        foreach ($amenityMap as $field => $label) {
             if ($request->has($field)) {
                 PropertyAmenity::create([
                     'property_id' => $property->id,
-                    'name'        => $amenityLabels[$field] ?? $field,
+                    'name'        => $label,
                     'icon'        => 'check-circle',
                 ]);
             }
         }
 
-        // Custom amenities
         if ($request->custom_amenities) {
-            foreach (array_filter($request->custom_amenities) as $name) {
+            foreach (array_filter((array) $request->custom_amenities) as $name) {
                 PropertyAmenity::create([
                     'property_id' => $property->id,
                     'name'        => $name,
@@ -173,36 +213,46 @@ class PropertyController extends Controller
         $property = Property::findOrFail($id);
 
         $request->validate([
-            'title'        => 'required|string|max:200',
-            'description'  => 'required|string',
-            'owner_id'     => 'required|exists:users,id',
-            'type'         => 'required|string',
-            'price'        => 'required|numeric|min:0',
-            'price_period' => 'required|string',
-            'city'         => 'required|string',
-            'country'      => 'required|string',
-            'images.*'     => 'nullable|image|max:5120',
+            'title'         => 'required|string|max:200',
+            'description'   => 'required|string',
+            'owner_id'      => 'required|exists:users,id',
+            'type'          => 'required|string',
+            'price'         => 'required|numeric|min:0',
+            'price_period'  => 'required|string',
+            'city'          => 'required|string',
+            'country'       => 'required|string',
+            'images.*'      => 'nullable|image|max:5120',
+            'duration_hours'=> 'nullable|required_if:price_period,heure|integer|min:1|max:24',
         ]);
 
-        $property->update($request->only([
-            'owner_id','title','description','type','price','price_period','currency',
-            'address','city','district','country','latitude','longitude',
-            'bedrooms','bathrooms','area','max_guests','status','is_approved',
-        ]));
-        $property->is_featured = $request->has('is_featured');
-        $property->save();
+        $property->update([
+            ...$request->only([
+                'owner_id','title','description','type','price','price_period','currency',
+                'address','city','district','country','latitude','longitude',
+                'bedrooms','bathrooms','area','max_guests','status','is_approved',
+                'deposit','contact_phone','contact_email','view_type','rules',
+                'capacity','floor','workstations','terrain_type','land_title',
+            ]),
+            'is_featured'    => $request->has('is_featured'),
+            'duration_hours' => $request->price_period === 'heure' ? $request->duration_hours : null,
+            'area'           => $request->area ?? $request->area_terrain,
+        ]);
 
-        // Nouvelles images → Cloudinary
         if ($request->hasFile('images')) {
             $sort = $property->images()->max('sort_order') + 1;
             foreach ($request->file('images') as $file) {
-                $url = $this->uploadImage($file, $property->id);
-                PropertyImage::create([
-                    'property_id' => $property->id,
-                    'url'         => $url,
-                    'is_primary'  => $sort === 1 && $property->images()->count() === 0,
-                    'sort_order'  => $sort++,
-                ]);
+                if (!$file->isValid()) continue;
+                try {
+                    $url = $this->uploadImage($file, $property->id);
+                    PropertyImage::create([
+                        'property_id' => $property->id,
+                        'url'         => $url,
+                        'is_primary'  => $sort === 1 && $property->images()->count() === 0,
+                        'sort_order'  => $sort++,
+                    ]);
+                } catch (\Throwable $e) {
+                    Log::error("Image update failed for property {$property->id}: " . $e->getMessage());
+                }
             }
         }
 
@@ -227,5 +277,19 @@ class PropertyController extends Controller
         ]);
         return back()->with('success', 'Propriété suspendue.');
     }
-}
 
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    /**
+     * Combine l'indicatif pays et le numéro local en un numéro complet.
+     * Ex: '+242' + '067631919' → '+242067631919'
+     */
+    private function buildPhone(?string $indicatif, ?string $number): ?string
+    {
+        if (empty($number)) return null;
+        $number = preg_replace('/\s+/', '', $number);
+        // Éviter le double indicatif si l'utilisateur a déjà tapé le +
+        if (str_starts_with($number, '+')) return $number;
+        return $indicatif . $number;
+    }
+}

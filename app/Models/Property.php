@@ -5,20 +5,17 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
-/**
- * FIX #4, #5, #6 — Model aligné avec la migration 2025_01_01_000002
- * Migration utilise : owner_id, price, price_period, type, is_approved, rating, reviews_count
- */
 class Property extends Model
 {
     use HasFactory;
 
     protected $fillable = [
-        'owner_id',       // FIX: était 'user_id'
+        // ── Champs de base (migration 000002) ──────────────────
+        'owner_id',
         'title',
         'description',
-        'type',           // FIX: enum 'appartement','villa','studio','maison','chambre','bureau','terrain'
-        'price',          // FIX: était 'price_per_night'
+        'type',
+        'price',
         'price_period',
         'currency',
         'address',
@@ -29,29 +26,48 @@ class Property extends Model
         'longitude',
         'bedrooms',
         'bathrooms',
-        'area',           // FIX: était 'area_m2'
+        'area',
         'max_guests',
         'status',
         'is_featured',
         'is_approved',
-        'rating',         // FIX: était 'rating_avg'
-        'reviews_count',  // FIX: était 'rating_count'
+        'rating',
+        'reviews_count',
         'views_count',
+
+        // ── Champs ajoutés (migration 000001 — types étendus) ──
+        'capacity',       // capacité salle de réunion / événement
+        'floor',          // étage
+
+        // ── Champs ajoutés (migration 000005 — extra fields) ───
+        'deposit',        // caution / dépôt de garantie
+        'contact_phone',  // téléphone de contact de la propriété
+        'contact_email',  // email de contact de la propriété
+        'view_type',      // vue (fleuve, ville, jardin…)
+        'rules',          // règlement intérieur
+        'workstations',   // postes de travail (bureaux)
+        'terrain_type',   // type de terrain
+        'land_title',     // titre foncier
+
+        // ── Champs ajoutés (migration 000010 — durée horaire) ──
+        'duration_hours', // durée min de location si price_period = heure
     ];
 
     protected $casts = [
-        'is_featured'  => 'boolean',
-        'is_approved'  => 'boolean',
-        'latitude'     => 'float',
-        'longitude'    => 'float',
-        'price'        => 'float',   // FIX
-        'rating'       => 'float',   // FIX
+        'is_featured'    => 'boolean',
+        'is_approved'    => 'boolean',
+        'latitude'       => 'float',
+        'longitude'      => 'float',
+        'price'          => 'float',
+        'rating'         => 'float',
+        'deposit'        => 'float',
     ];
 
-    // ── Relations ────────────────────────────────────────────────
+    // ── Relations ─────────────────────────────────────────────────────────────
+
     public function owner()
     {
-        return $this->belongsTo(User::class, 'owner_id'); // FIX: clé étrangère correcte
+        return $this->belongsTo(User::class, 'owner_id');
     }
 
     public function images()
@@ -59,13 +75,11 @@ class Property extends Model
         return $this->hasMany(PropertyImage::class)->orderBy('sort_order');
     }
 
-    // FIX #6 — is_primary (migration) au lieu de is_cover
     public function primaryImage()
     {
         return $this->hasOne(PropertyImage::class)->where('is_primary', true);
     }
 
-    // Alias pour rétrocompatibilité
     public function coverImage()
     {
         return $this->primaryImage();
@@ -96,15 +110,8 @@ class Property extends Model
         return $this->hasMany(PropertyAvailability::class);
     }
 
-    // ── Méthodes ─────────────────────────────────────────────────
-    public function updateRating(): void
-    {
-        $avg   = $this->reviews()->where('is_visible', true)->avg('rating') ?? 0;
-        $count = $this->reviews()->where('is_visible', true)->count();
-        $this->update(['rating' => round($avg, 2), 'reviews_count' => $count]);
-    }
+    // ── Scopes ────────────────────────────────────────────────────────────────
 
-    // FIX #5 — enum migration est 'disponible', pas 'active'
     public function scopeActive($q)
     {
         return $q->where('status', 'disponible')->where('is_approved', true);
@@ -115,9 +122,36 @@ class Property extends Model
         return $q->where('is_featured', true);
     }
 
-    // Accesseur prix formaté
+    // ── Méthodes ──────────────────────────────────────────────────────────────
+
+    public function updateRating(): void
+    {
+        $avg   = $this->reviews()->where('is_visible', true)->avg('rating') ?? 0;
+        $count = $this->reviews()->where('is_visible', true)->count();
+        $this->update(['rating' => round($avg, 2), 'reviews_count' => $count]);
+    }
+
+    // ── Accesseurs ────────────────────────────────────────────────────────────
+
     public function getFormattedPriceAttribute(): string
     {
         return number_format($this->price, 0, ',', ' ') . ' ' . $this->currency;
+    }
+
+    /**
+     * Retourne le label du price_period (ex: "mois" → "Par mois")
+     */
+    public function getPricePeriodLabelAttribute(): string
+    {
+        return match($this->price_period) {
+            'heure'   => 'Par heure',
+            'nuit'    => 'Par nuit',
+            'jour'    => 'Par jour',
+            'semaine' => 'Par semaine',
+            'mois'    => 'Par mois',
+            'an'      => 'Par an',
+            'total'   => 'Prix total',
+            default   => $this->price_period,
+        };
     }
 }
