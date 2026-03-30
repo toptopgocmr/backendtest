@@ -99,12 +99,22 @@ class PaymentController extends Controller
             }
         }
 
+        // ── Carte / Virement → confirmation immédiate ─────────────────────
+        // FIX: Peexit désactivé temporairement. Carte et Virement confirment
+        // la réservation immédiatement pour que le parcours client soit complet.
+        $manualMethods = ['carte', 'virement'];
+        if (in_array($request->method, $manualMethods)) {
+            $payment->update(['status' => 'succès', 'paid_at' => now()]);
+            $booking->update(['status' => 'confirmé']);
+            Log::info('[Payment] Manuel confirmé', ['method' => $request->method, 'booking' => $booking->reference]);
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Paiement initié. Validez sur votre téléphone.',
             'data'    => [
                 'payment_reference' => $payment->reference,
-                'status'            => $payment->status,
+                'status'            => $payment->fresh()->status,
                 'amount'            => $payment->amount,
                 'currency'          => $payment->currency,
                 'method'            => $payment->method,
