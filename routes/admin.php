@@ -1,8 +1,4 @@
 <?php
-// ╔══════════════════════════════════════════════════════════════════════════╗
-// ║  FICHIER : routes/admin.php  (version complète avec messages)            ║
-// ║  CHANGEMENT : ajout du use MessageController + routes messages           ║
-// ╚══════════════════════════════════════════════════════════════════════════╝
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\AuthController;
@@ -17,17 +13,18 @@ use App\Http\Controllers\Admin\SupportController;
 use App\Http\Controllers\Admin\OwnerController;
 use App\Http\Controllers\Admin\AgentController;
 use App\Http\Controllers\Admin\StockController;
-use App\Http\Controllers\Admin\MessageController; // ← AJOUTÉ
+use App\Http\Controllers\Admin\MessageController;
+use App\Http\Controllers\Admin\AdminPaymentController;
 
 Route::prefix('admin')->name('admin.')->group(function () {
 
-    // ── GUEST ──────────────────────────────────────────────────────────────
+    // ── GUEST ──────────────────────────────────────────────────────────────────
     Route::middleware('guest:admin')->group(function () {
         Route::get('login',  [AuthController::class, 'showLogin'])->name('login');
         Route::post('login', [AuthController::class, 'login'])->name('login.post');
     });
 
-    // ── AUTHENTICATED ADMIN ─────────────────────────────────────────────────
+    // ── AUTH ADMIN ─────────────────────────────────────────────────────────────
     Route::middleware('auth:admin')->group(function () {
 
         Route::post('logout', [AuthController::class, 'logout'])->name('logout');
@@ -36,40 +33,46 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
         // PROPERTIES
-        Route::prefix('properties')->group(function () {
-            Route::get('/',            [PropertyController::class, 'index'])->name('properties.index');
-            Route::get('create',       [PropertyController::class, 'create'])->name('properties.create');
-            Route::post('/',           [PropertyController::class, 'store'])->name('properties.store');
-            Route::get('{id}',         [PropertyController::class, 'show'])->name('properties.show');
-            Route::get('{id}/edit',    [PropertyController::class, 'edit'])->name('properties.edit');
-            Route::put('{id}',         [PropertyController::class, 'update'])->name('properties.update');
-            Route::put('{id}/approve', [PropertyController::class, 'approve'])->name('properties.approve');
-            Route::delete('{id}',      [PropertyController::class, 'destroy'])->name('properties.destroy');
+        Route::prefix('properties')->name('properties.')->group(function () {
+            Route::get('/',            [PropertyController::class, 'index'])->name('index');
+            Route::get('create',       [PropertyController::class, 'create'])->name('create');
+            Route::post('/',           [PropertyController::class, 'store'])->name('store');
+            Route::get('{id}',         [PropertyController::class, 'show'])->name('show');
+            Route::get('{id}/edit',    [PropertyController::class, 'edit'])->name('edit');
+            Route::put('{id}',         [PropertyController::class, 'update'])->name('update');
+            Route::put('{id}/approve', [PropertyController::class, 'approve'])->name('approve');
+            Route::delete('{id}',      [PropertyController::class, 'destroy'])->name('destroy');
         });
 
         // BOOKINGS
-        Route::prefix('bookings')->group(function () {
-            Route::get('/',              [BookingController::class, 'index'])->name('bookings.index');
-            Route::get('{ref}',          [BookingController::class, 'show'])->name('bookings.show');
-            Route::put('{ref}/confirm',  [BookingController::class, 'confirm'])->name('bookings.confirm');
-            Route::put('{ref}/complete', [BookingController::class, 'complete'])->name('bookings.complete');
+        Route::prefix('bookings')->name('bookings.')->group(function () {
+            Route::get('/',              [BookingController::class, 'index'])->name('index');
+            Route::get('export-csv',     [BookingController::class, 'exportCsv'])->name('export-csv');
+            Route::get('{ref}',          [BookingController::class, 'show'])->name('show');
+            Route::put('{ref}/confirm',  [BookingController::class, 'confirm'])->name('confirm');
+            Route::put('{ref}/cancel',   [BookingController::class, 'cancel'])->name('cancel');   // ✅ FIX Bug 1
+            Route::put('{ref}/complete', [BookingController::class, 'complete'])->name('complete');
         });
 
         // PAYMENTS
-        Route::prefix('payments')->group(function () {
-            Route::get('/',             [PaymentController::class, 'index'])->name('payments.index');
-            Route::post('{ref}/refund', [PaymentController::class, 'refund'])->name('payments.refund');
+        Route::prefix('payments')->name('payments.')->group(function () {
+            Route::get('/',              [PaymentController::class, 'index'])->name('index');
+            Route::get('export-csv',     [PaymentController::class, 'exportCsv'])->name('export-csv');
+            Route::get('{id}/receipt',   [PaymentController::class, 'receipt'])->name('receipt');
+            Route::post('{id}/validate', [PaymentController::class, 'validatePayment'])->name('validate');
+            Route::post('{id}/reject',   [PaymentController::class, 'rejectPayment'])->name('reject');
+            Route::post('{ref}/refund',  [PaymentController::class, 'refund'])->name('refund');
         });
 
         // USERS
-        Route::prefix('users')->group(function () {
-            Route::get('/',            [UserController::class, 'index'])->name('users.index');
-            Route::get('{id}',         [UserController::class, 'show'])->name('users.show');
-            Route::put('{id}/toggle',  [UserController::class, 'toggle'])->name('users.toggle');
-            Route::put('{id}/verify',  [UserController::class, 'verify'])->name('users.verify');
+        Route::prefix('users')->name('users.')->group(function () {
+            Route::get('/',            [UserController::class, 'index'])->name('index');
+            Route::get('{id}',         [UserController::class, 'show'])->name('show');
+            Route::put('{id}/toggle',  [UserController::class, 'toggle'])->name('toggle');
+            Route::put('{id}/verify',  [UserController::class, 'verify'])->name('verify');
         });
 
-        // OWNERS (PROPRIÉTAIRES)
+        // OWNERS
         Route::prefix('owners')->name('owners.')->group(function () {
             Route::get('/',           [OwnerController::class, 'index'])->name('index');
             Route::get('create',      [OwnerController::class, 'create'])->name('create');
@@ -93,7 +96,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::delete('{id}',     [AgentController::class, 'destroy'])->name('destroy');
         });
 
-        // STOCKS
+        // STOCK
         Route::prefix('stock')->name('stock.')->group(function () {
             Route::get('/',                   [StockController::class, 'index'])->name('index');
             Route::get('create',              [StockController::class, 'create'])->name('create');
@@ -109,24 +112,24 @@ Route::prefix('admin')->name('admin.')->group(function () {
         });
 
         // REVIEWS
-        Route::prefix('reviews')->group(function () {
-            Route::get('/',           [ReviewController::class, 'index'])->name('reviews.index');
-            Route::delete('{id}',     [ReviewController::class, 'destroy'])->name('reviews.destroy');
-            Route::put('{id}/toggle', [ReviewController::class, 'toggle'])->name('reviews.toggle');
+        Route::prefix('reviews')->name('reviews.')->group(function () {
+            Route::get('/',           [ReviewController::class, 'index'])->name('index');
+            Route::delete('{id}',     [ReviewController::class, 'destroy'])->name('destroy');
+            Route::put('{id}/toggle', [ReviewController::class, 'toggle'])->name('toggle');
         });
 
         // ACCOUNTING
         Route::get('accounting', [AccountingController::class, 'index'])->name('accounting.index');
 
-        // SUPPORT (tickets)
-        Route::prefix('support')->group(function () {
-            Route::get('/',           [SupportController::class, 'index'])->name('support.index');
-            Route::get('{id}',        [SupportController::class, 'show'])->name('support.show');
-            Route::post('{id}/reply', [SupportController::class, 'reply'])->name('support.reply');
-            Route::put('{id}/close',  [SupportController::class, 'close'])->name('support.close');
+        // SUPPORT
+        Route::prefix('support')->name('support.')->group(function () {
+            Route::get('/',           [SupportController::class, 'index'])->name('index');
+            Route::get('{id}',        [SupportController::class, 'show'])->name('show');
+            Route::post('{id}/reply', [SupportController::class, 'reply'])->name('reply');
+            Route::put('{id}/close',  [SupportController::class, 'close'])->name('close');
         });
 
-        // ── MESSAGES — conversations Flutter ── SECTION AJOUTÉE ──────────────
+        // MESSAGES
         Route::prefix('messages')->name('messages.')->group(function () {
             Route::get('/',           [MessageController::class, 'index'])->name('index');
             Route::get('{id}',        [MessageController::class, 'show'])->name('show');
@@ -135,5 +138,13 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         // SETTINGS
         Route::get('settings', fn () => view('admin.settings'))->name('settings');
+
+        // ── API JSON — ADMIN PAYMENTS ──────────────────────────────────────────
+        Route::prefix('api/payments')->name('api.payments.')->group(function () {
+            Route::get('/',                    [AdminPaymentController::class, 'index'])->name('index');
+            Route::get('{payment}',            [AdminPaymentController::class, 'show'])->name('show');
+            Route::patch('{payment}/validate', [AdminPaymentController::class, 'validatePayment'])->name('validate');
+            Route::patch('{payment}/reject',   [AdminPaymentController::class, 'reject'])->name('reject');
+        });
     });
 });

@@ -3,306 +3,342 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\SubmitPaymentRequest;
+use App\Http\Resources\PaymentResource;
 use App\Models\Booking;
 use App\Models\Payment;
-use App\Services\PeexitService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
-/**
- * PaymentController
- *
- * FIX BUG 3 :
- *   "Erreur serveur" lors du paiement Carte/Virement.
- *
- *   Cause identifiée : quand l'utilisateur clique "Payer" une 2e fois
- *   (après une tentative échouée ou un retour en arrière), un 2e paiement
- *   `en_attente` est créé pour le même booking. Si un problème survient
- *   (timeout, erreur réseau), le 3e clic crée un 3e paiement, etc.
- *   À terme, une contrainte ou une logique métier plante → 500.
- *
- *   SOLUTION : avant de créer un paiement, vérifier s'il en existe déjà
- *   un `en_attente` pour cette réservation → le réutiliser (ou le supprimer
- *   et en créer un nouveau avec la bonne méthode).
- *
- *   FIX ADDITIONNEL : le booking.status est mis à 'confirmé' (avec accent)
- *   ce qui correspond bien à l'enum de la migration.
- */
 class PaymentController extends Controller
 {
-    public function __construct(private PeexitService $peex) {}
+    const PAYMENT_NUMBERS = [
+        'mtn_momo' => [
+            'number' => '+242 06 XXX XX XX',
+            'label'  => 'MTN MoMo',
+        ],
+        'airtel_money' => [
+            'number' => '+242 05 XXX XX XX',
+            'label'  => 'Airtel Money',
+        ],
+    ];
 
-    // ────────────────────────────────────────────────────────────────────────
-    //  POST /api/v1/payments/initiate
-    // ────────────────────────────────────────────────────────────────────────
-    public function initiate(Request $request)
+    public function initiate(Request $request): JsonResponse
     {
         $request->validate([
-            'booking_ref' => 'required|string',
-            'method'      => 'required|in:mtn_momo,airtel_money,orange_money,wave,carte,virement',
-            'phone'       => 'required_if:method,mtn_momo,airtel_money,orange_money,wave|nullable|string',
+            'booking_id'  => 'required_without:booking_ref|exists:bookings,id',
+            'booking_ref' => 'required_without:booking_id|string',
+            'method'      => 'required|string|in:mtn_momo,airtel_money',
+            'phone'       => 'nullable|string|max:25',
         ]);
 
-        $mobileMoneyMethods = ['mtn_momo', 'airtel_money', 'orange_money', 'wave'];
-        $manualMethods      = ['carte', 'virement'];
+        $booking = $request->booking_id
+            ? Booking::findOrFail($request->booking_id)
+            : Booking::where('reference', $request->booking_ref)->firstOrFail();
 
-        // Vérifier la config Peexit pour mobile money
-        if (in_array($request->method, $mobileMoneyMethods) && !$this->peex->isConfigured()) {
-            Log::critical('[PaymentController] PEEX_SECRET_KEY manquante');
+        if ((int) $booking->user_id !== (int) auth()->id()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Le paiement mobile est temporairement indisponible.',
-                'code'    => 'PAYMENT_SERVICE_UNAVAILABLE',
-            ], 503);
+                'message' => 'Cette réservation ne vous appartient pas.',
+            ], 403);
         }
 
-        // Récupérer la réservation
-        $booking = Booking::where('reference', $request->booking_ref)
-            ->where('user_id', $request->user()->id)
-            ->firstOrFail();
+        $existing = Payment::where('booking_id', $booking->id)
+            ->whereIn('status', [
+                Payment::STATUS_EN_ATTENTE,
+                Payment::STATUS_EN_ATTENTE_CONFIRMATION,
+                Payment::STATUS_SUCCES,
+            ])->first();
 
-        // Si déjà payée → rejeter
-        if ($booking->payment && $booking->payment->isSuccess()) {
+        if ($existing) {
             return response()->json([
-                'success' => false,
-                'message' => 'Cette réservation est déjà payée.',
-            ], 409);
+                'success'     => false,
+                'message'     => 'Un paiement est déjà en cours ou validé pour cette réservation.',
+                'payment_ref' => $existing->reference ?? "PAY-{$existing->id}",
+                'booking_ref' => $booking->reference,
+                'payment'     => new PaymentResource($existing),
+            ], 422);
         }
 
-        // ── FIX BUG 3 : réutiliser ou supprimer le paiement en_attente ──
-        // Évite les doublons qui causent des 500 lors des re-tentatives
+        $payment = Payment::create([
+            'booking_id' => $booking->id,
+            'user_id'    => auth()->id(),
+            'amount'     => $booking->total_amount,
+            'currency'   => $booking->currency ?? 'XAF',
+            'method'     => $request->method,
+            'phone'      => $request->phone,
+            'status'     => Payment::STATUS_EN_ATTENTE,
+        ]);
+
+        return response()->json([
+            'success'         => true,
+            'payment_ref'     => $payment->reference ?? "PAY-{$payment->id}",
+            'booking_ref'     => $booking->reference ?? "BK-{$booking->id}",
+            'booking_id'      => $booking->id,
+            'amount'          => $booking->total_amount,
+            'currency'        => $booking->currency ?? 'XAF',
+            'payment_numbers' => self::PAYMENT_NUMBERS,
+            'instructions'    => [
+                "1. Envoyez {$booking->total_amount} XAF à l'un des numéros ci-dessous.",
+                "2. Notez l'ID de transaction affiché sur votre téléphone.",
+                "3. Prenez une capture d'écran de la confirmation.",
+                "4. Soumettez l'ID et la capture dans l'application.",
+                "⏳ Validation sous 5 à 30 minutes.",
+            ],
+        ]);
+    }
+
+    public function instructions(Booking $booking): JsonResponse
+    {
+        if ((int) $booking->user_id !== (int) auth()->id()) {
+            return response()->json(['success' => false, 'message' => 'Non autorisé.'], 403);
+        }
+
+        return response()->json([
+            'success'         => true,
+            'amount'          => $booking->total_amount,
+            'currency'        => 'XAF',
+            'payment_numbers' => self::PAYMENT_NUMBERS,
+            'instructions'    => [
+                "1. Envoyez {$booking->total_amount} XAF à l'un des numéros ci-dessus.",
+                "2. Notez l'ID de transaction affiché sur votre téléphone.",
+                "3. Prenez une capture d'écran de la confirmation.",
+                "4. Soumettez l'ID et la capture dans l'application.",
+                "⏳ Validation sous 5 à 30 minutes.",
+            ],
+        ]);
+    }
+
+    public function store(SubmitPaymentRequest $request, Booking $booking): JsonResponse
+    {
+        if ((int) $booking->user_id !== (int) auth()->id()) {
+            return response()->json(['success' => false, 'message' => 'Non autorisé.'], 403);
+        }
+
         $existingPayment = Payment::where('booking_id', $booking->id)
-            ->where('status', 'en_attente')
-            ->latest()
-            ->first();
+            ->whereIn('status', [
+                Payment::STATUS_EN_ATTENTE_CONFIRMATION,
+                Payment::STATUS_SUCCES,
+            ])->first();
 
         if ($existingPayment) {
-            if ($existingPayment->method === $request->method) {
-                // Même méthode → on réutilise directement
-                $payment = $existingPayment;
-                Log::info('[Payment] Réutilisation paiement existant', [
-                    'ref'    => $payment->reference,
-                    'method' => $payment->method,
-                ]);
-            } else {
-                // Méthode différente → supprimer l'ancien et en créer un nouveau
-                $existingPayment->delete();
-                $payment = null;
-                Log::info('[Payment] Ancien paiement supprimé (méthode changée)', [
-                    'old' => $existingPayment->method,
-                    'new' => $request->method,
-                ]);
-            }
-        } else {
-            $payment = null;
+            return response()->json([
+                'success' => false,
+                'message' => 'Un paiement est déjà en cours pour cette réservation.',
+            ], 422);
         }
 
-        // Créer un nouveau paiement si nécessaire
-        if (!$payment) {
+        DB::beginTransaction();
+        try {
+            $proofPath = null;
+            if ($request->hasFile('proof_image')) {
+                $proofPath = $request->file('proof_image')
+                    ->store("payments/{$booking->id}", 'public');
+            }
+
             $payment = Payment::create([
-                'booking_id' => $booking->id,
-                'user_id'    => $request->user()->id,
-                'method'     => $request->method,
-                'phone'      => $request->phone ?: null,
-                'amount'     => $booking->total_amount,
-                'currency'   => $booking->currency ?? 'XAF',
-                'status'     => 'en_attente',
+                'booking_id'     => $booking->id,
+                'user_id'        => auth()->id(),
+                'amount'         => $booking->total_amount,
+                'currency'       => 'XAF',
+                'payment_method' => $request->payment_method,
+                'phone_number'   => $request->phone_number,
+                'transaction_id' => $request->transaction_id,
+                'proof_image'    => $proofPath,
+                'status'         => Payment::STATUS_EN_ATTENTE_CONFIRMATION,
             ]);
+
+            $booking->update(['payment_status' => 'en_attente_confirmation']);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Preuve de paiement soumise. Validation sous 5 à 30 minutes.',
+                'payment' => new PaymentResource($payment->load('booking')),
+                'receipt' => [
+                    'type'           => 'provisoire',
+                    'payment_id'     => $payment->id,
+                    'booking_ref'    => $booking->reference ?? "BK-{$booking->id}",
+                    'amount'         => $payment->amount,
+                    'currency'       => $payment->currency,
+                    'transaction_id' => $payment->transaction_id,
+                    'submitted_at'   => $payment->created_at->format('d/m/Y H:i'),
+                    'status'         => $payment->status_label,
+                    'message'        => "Votre paiement est en cours de vérification. Confirmation d'ici 30 minutes.",
+                ],
+            ], 201);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la soumission. Veuillez réessayer.',
+                'error'   => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    public function confirmManual(Request $request, string $paymentRef): JsonResponse
+    {
+        $payment = Payment::where('reference', $paymentRef)->first();
+
+        if (!$payment) {
+            return response()->json([
+                'success' => false,
+                'message' => "Paiement introuvable pour la référence « {$paymentRef} ».",
+            ], 404);
         }
 
-        // ── Mobile Money → appel Peexit ──────────────────────────────────
-        if (in_array($request->method, $mobileMoneyMethods)) {
-            try {
-                $user    = $request->user();
-                $country = $this->resolveCountryCode($user->country ?? 'Congo (Brazzaville)');
-                $phone   = $this->formatPhone($request->phone, $country);
-
-                $peexResult = $this->peex->requestCollection([
-                    'track_id'      => $payment->reference,
-                    'phone'         => $phone,
-                    'amount'        => (float) $booking->total_amount,
-                    'currency'      => $booking->currency ?? 'XAF',
-                    'customer_name' => $user->name,
-                    'country'       => $country,
-                    'description'   => "Réservation ImmoStay #{$booking->reference}",
-                ]);
-
-                $payment->update([
-                    'provider_ref'     => (string) ($peexResult['id'] ?? ''),
-                    'gateway_response' => $peexResult,
-                    'status'           => $this->peex->mapStatus($peexResult['status'] ?? 'pending'),
-                ]);
-
-            } catch (\Throwable $e) {
-                Log::error('[PaymentController] Peexit error', ['error' => $e->getMessage()]);
-                $payment->update(['status' => 'échoué']);
-
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Erreur lors de l\'initiation du paiement : ' . $e->getMessage(),
-                ], 500);
-            }
+        if ((int) $payment->booking->user_id !== (int) auth()->id()) {
+            return response()->json(['success' => false, 'message' => 'Non autorisé.'], 403);
         }
 
-        // ── Carte / Virement → confirmation immédiate ────────────────────
-        // Peexit désactivé temporairement. On confirme directement.
-        if (in_array($request->method, $manualMethods)) {
-            $payment->update(['status' => 'succès', 'paid_at' => now()]);
-            $booking->update(['status' => 'confirmé']);
-            Log::info('[Payment] Manuel confirmé', [
-                'method'  => $request->method,
-                'booking' => $booking->reference,
-                'payment' => $payment->reference,
-            ]);
+        if (!in_array($payment->status, [Payment::STATUS_EN_ATTENTE, Payment::STATUS_EN_ATTENTE_CONFIRMATION])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Ce paiement ne peut pas être confirmé manuellement.',
+            ], 422);
         }
 
-        $payment->refresh();
+        $request->validate([
+            'provider_ref'   => 'required_without:transaction_id|nullable|string|max:100',
+            'transaction_id' => 'required_without:provider_ref|nullable|string|max:100',
+            'phone'          => 'required_without:phone_number|nullable|string|max:25',
+            'phone_number'   => 'required_without:phone|nullable|string|max:25',
+            'proof'          => 'nullable|image|max:5120',
+            'proof_image'    => 'nullable|image|max:5120',
+            'proof_base64'   => 'nullable|string', // ✅ Flutter Web
+        ]);
+
+        $transactionId = $request->provider_ref ?? $request->transaction_id;
+        $phoneNumber   = $request->phone        ?? $request->phone_number;
+
+        // ✅ Upload : multipart (mobile) OU base64 (Flutter Web)
+        $proofPath = $payment->proof_image;
+        $proofFile = $request->file('proof') ?? $request->file('proof_image');
+
+        if ($proofFile) {
+            $proofPath = $proofFile->store("payments/{$payment->booking_id}", 'public');
+        } elseif ($request->filled('proof_base64')) {
+            $imageData = base64_decode($request->proof_base64);
+            $filename  = 'preuve_' . time() . '.jpg';
+            $path      = "payments/{$payment->booking_id}/{$filename}";
+            Storage::disk('public')->put($path, $imageData);
+            $proofPath = $path;
+        }
+
+        $payment->update([
+            'provider_ref'   => $transactionId,
+            'transaction_id' => $transactionId,
+            'phone'          => $phoneNumber,
+            'phone_number'   => $phoneNumber,
+            'proof_image'    => $proofPath,
+            'status'         => Payment::STATUS_EN_ATTENTE_CONFIRMATION,
+        ]);
+
+        $payment->booking?->update(['payment_status' => 'en_attente_confirmation']);
+
+        $booking = $payment->booking;
 
         return response()->json([
             'success' => true,
-            'message' => in_array($request->method, $manualMethods)
-                ? 'Paiement confirmé.'
-                : 'Paiement initié. Validez sur votre téléphone.',
-            'data'    => [
-                'payment_reference' => $payment->reference,
-                'status'            => $payment->status,
-                'amount'            => $payment->amount,
-                'currency'          => $payment->currency,
-                'method'            => $payment->method,
+            'message' => 'Preuve soumise. Validation sous 5 à 30 minutes.',
+            'payment' => new PaymentResource($payment->fresh()->load('booking')),
+            'receipt' => [
+                'type'         => 'provisoire',
+                'payment_ref'  => $payment->reference ?? "PAY-{$payment->id}",
+                'booking_ref'  => $booking?->reference ?? "BK-{$payment->booking_id}",
+                'amount'       => $payment->amount,
+                'currency'     => $payment->currency ?? 'XAF',
+                'provider_ref' => $transactionId,
+                'submitted_at' => now()->toIso8601String(),
+                'status'       => 'en_attente_confirmation',
+                'message'      => "Votre paiement est en cours de vérification.",
             ],
         ]);
     }
 
-    // ────────────────────────────────────────────────────────────────────────
-    //  GET /api/v1/payments/{ref}/status
-    // ────────────────────────────────────────────────────────────────────────
-    public function status(string $ref)
+    public function status(string $paymentRef): JsonResponse
     {
-        $payment = Payment::where('reference', $ref)->firstOrFail();
+        $payment = Payment::where('reference', $paymentRef)->first();
 
-        if ($payment->isPending() && $payment->provider_ref && $this->peex->isConfigured()) {
-            try {
-                $peexResult = $this->peex->getTransactionStatus($payment->reference);
-                $newStatus  = $this->peex->mapStatus($peexResult['status'] ?? 'pending');
-
-                if ($newStatus !== $payment->status) {
-                    $payment->update([
-                        'status'           => $newStatus,
-                        'gateway_response' => $peexResult,
-                        'paid_at'          => $newStatus === 'succès' ? now() : null,
-                    ]);
-
-                    if ($newStatus === 'succès') {
-                        $payment->booking?->update(['status' => 'confirmé']);
-                    }
-                }
-            } catch (\Throwable $e) {
-                Log::warning('[PaymentController] Status refresh failed', [
-                    'ref'   => $ref,
-                    'error' => $e->getMessage(),
-                ]);
-            }
+        if (!$payment) {
+            return response()->json([
+                'success' => false,
+                'message' => "Paiement introuvable pour la référence « {$paymentRef} ».",
+            ], 404);
         }
 
-        $payment->refresh();
+        if ((int) $payment->booking->user_id !== (int) auth()->id()) {
+            return response()->json(['success' => false, 'message' => 'Non autorisé.'], 403);
+        }
 
         return response()->json([
-            'success' => true,
-            'data'    => [
-                'reference' => $payment->reference,
-                'status'    => $payment->status,
-                'amount'    => $payment->amount,
-                'currency'  => $payment->currency,
-                'method'    => $payment->method,
-                'paid_at'   => $payment->paid_at?->toIso8601String(),
-            ],
+            'success'     => true,
+            'status'      => $payment->status,
+            'label'       => $payment->status_label,
+            'validated'   => $payment->status === Payment::STATUS_SUCCES,
+            'verified_at' => $payment->verified_at?->toIso8601String(),
         ]);
     }
 
-    // ────────────────────────────────────────────────────────────────────────
-    //  POST /api/v1/payments/peex/callback
-    // ────────────────────────────────────────────────────────────────────────
-    public function peexCallback(Request $request)
+    public function show(string $paymentRef): JsonResponse
     {
-        $username = $request->getUser();
-        $password = $request->getPassword();
+        $payment = Payment::where('reference', $paymentRef)->first();
 
-        $expectedUser = config('services.peexit.callback_user', 'peex');
-        $expectedPass = config('services.peexit.callback_password', 'peex_callback');
-
-        if ($username !== $expectedUser || $password !== $expectedPass) {
-            return response()->json(['error' => 'Unauthorized'], 401);
+        if (!$payment) {
+            return response()->json([
+                'success' => false,
+                'message' => "Paiement introuvable pour la référence « {$paymentRef} ».",
+            ], 404);
         }
 
-        $payload      = $request->all();
-        $transactions = isset($payload[0]) ? $payload : [$payload];
-
-        foreach ($transactions as $tx) {
-            $trackId    = $tx['track_id'] ?? null;
-            $peexStatus = $tx['status']   ?? null;
-
-            if (!$trackId || !$peexStatus) continue;
-
-            $payment = Payment::where('reference', $trackId)->first();
-            if (!$payment) continue;
-
-            $newStatus = $this->peex->mapStatus($peexStatus);
-            $payment->update([
-                'status'           => $newStatus,
-                'gateway_response' => $tx,
-                'paid_at'          => $newStatus === 'succès' ? now() : null,
-            ]);
-
-            if ($newStatus === 'succès') {
-                $payment->booking?->update(['status' => 'confirmé']);
-            }
+        if ((int) $payment->booking->user_id !== (int) auth()->id()) {
+            return response()->json(['success' => false, 'message' => 'Non autorisé.'], 403);
         }
 
-        return response()->json(['success' => true]);
+        $payment->load('booking');
+
+        $response = [
+            'success' => true,
+            'payment' => new PaymentResource($payment),
+        ];
+
+        if ($payment->status === Payment::STATUS_SUCCES) {
+            $response['receipt'] = [
+                'type'           => 'final',
+                'payment_id'     => $payment->id,
+                'booking_ref'    => $payment->booking->reference ?? "BK-{$payment->booking_id}",
+                'amount'         => $payment->amount,
+                'currency'       => $payment->currency,
+                'transaction_id' => $payment->transaction_id,
+                'verified_at'    => $payment->verified_at?->format('d/m/Y H:i'),
+                'status'         => 'Paiement confirmé ✅',
+                'message'        => 'Votre paiement a été validé. Votre réservation est confirmée !',
+            ];
+        }
+
+        return response()->json($response);
     }
 
-    // ────────────────────────────────────────────────────────────────────────
-    //  Helpers
-    // ────────────────────────────────────────────────────────────────────────
-    private function resolveCountryCode(string $country): string
+    public function myPayments(Request $request): JsonResponse
     {
-        if (preg_match('/^[A-Z]{2}$/', $country)) return $country;
-        $map = [
-            'Congo Brazzaville'   => 'CG',
-            'Congo (Brazzaville)' => 'CG',
-            'Congo RDC'           => 'CD',
-            'Gabon'               => 'GA',
-            'Cameroun'            => 'CM',
-            'Côte d\'Ivoire'      => 'CI',
-            'Sénégal'             => 'SN',
-            'Mali'                => 'ML',
-            'Guinée'              => 'GN',
-            'Tchad'               => 'TD',
-            'Centrafrique'        => 'CF',
-            'Angola'              => 'AO',
-            'France'              => 'FR',
-            'Belgique'            => 'BE',
-            'Togo'                => 'TG',
-            'Bénin'               => 'BJ',
-        ];
-        return $map[$country] ?? 'CG';
-    }
+        $payments = Payment::where('user_id', auth()->id())
+            ->with('booking')
+            ->latest()
+            ->paginate($request->per_page ?? 10);
 
-    private function formatPhone(string $phone, string $countryCode): string
-    {
-        if (str_starts_with($phone, '+')) {
-            return preg_replace('/\s+/', '', $phone);
-        }
-        $dialCodes = [
-            'CG' => '+242', 'CD' => '+243', 'GA' => '+241',
-            'CM' => '+237', 'CI' => '+225', 'SN' => '+221',
-            'ML' => '+223', 'GN' => '+224', 'TD' => '+235',
-            'CF' => '+236', 'AO' => '+244', 'FR' => '+33',
-            'BE' => '+32',  'TG' => '+228', 'BJ' => '+229',
-        ];
-        $dialCode = $dialCodes[$countryCode] ?? '+242';
-        $phone    = preg_replace('/\s+/', '', $phone);
-        if (str_starts_with($phone, '0')) $phone = substr($phone, 1);
-        return $dialCode . $phone;
+        return response()->json([
+            'success'  => true,
+            'payments' => PaymentResource::collection($payments),
+            'meta'     => [
+                'current_page' => $payments->currentPage(),
+                'last_page'    => $payments->lastPage(),
+                'total'        => $payments->total(),
+            ],
+        ]);
     }
 }

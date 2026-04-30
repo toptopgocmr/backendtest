@@ -5,10 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
-/**
- * FIX #7 — Model aligné avec la migration 2025_01_01_000003
- * Migration utilise : base_amount, fees_amount, notes, cancel_reason, status en FR
- */
 class Booking extends Model
 {
     protected $fillable = [
@@ -19,19 +15,19 @@ class Booking extends Model
         'check_out',
         'nights',
         'guests',
-        'base_amount',     // FIX: était 'subtotal' + 'price_per_night'
-        'fees_amount',     // FIX: était 'service_fee'
+        'base_amount',
+        'fees_amount',
         'total_amount',
         'currency',
         'status',
-        'notes',           // FIX: était 'special_requests'
-        'cancel_reason',   // FIX: était 'cancellation_reason'
+        'notes',
+        'cancel_reason',
         'cancelled_at',
     ];
 
     protected $casts = [
-        'check_in'     => 'date',
-        'check_out'    => 'date',
+        'check_in'     => 'datetime',  // ← FIX : était 'date'
+        'check_out'    => 'datetime',  // ← FIX : était 'date'
         'cancelled_at' => 'datetime',
         'base_amount'  => 'float',
         'fees_amount'  => 'float',
@@ -53,13 +49,29 @@ class Booking extends Model
     public function payment()  { return $this->hasOne(Payment::class); }
     public function review()   { return $this->hasOne(Review::class); }
 
-    // ── Statuts (alignés avec l'enum migration) ──────────────────
+    // ── Commission Tholad ────────────────────────────────────────
+    public function getCommissionRateAttribute(): float
+    {
+        return (float) ($this->property?->owner?->ownerProfile?->commission_rate ?? 0);
+    }
+
+    public function getCommissionAmountAttribute(): float
+    {
+        if ($this->commission_rate <= 0) return 0;
+        return round($this->total_amount * $this->commission_rate / 100);
+    }
+
+    public function getOwnerAmountAttribute(): float
+    {
+        return $this->total_amount - $this->commission_amount;
+    }
+
+    // ── Statuts ──────────────────────────────────────────────────
     public function isPending()   { return $this->status === 'en_attente'; }
     public function isConfirmed() { return $this->status === 'confirmé'; }
     public function isCancelled() { return $this->status === 'annulé'; }
     public function isCompleted() { return $this->status === 'terminé'; }
 
-    // Label de statut pour les vues
     public function getStatusLabelAttribute(): string
     {
         return match($this->status) {

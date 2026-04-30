@@ -2,19 +2,22 @@
 
 namespace App\Providers;
 
-use Illuminate\Support\ServiceProvider;
+use App\Models\Booking;
+use App\Policies\BookingPolicy;
+use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 use Illuminate\Support\Facades\Schema;
 
 class AppServiceProvider extends ServiceProvider
 {
-    public function register(): void
-    {
-        //
-    }
+    protected $policies = [
+        Booking::class => BookingPolicy::class,
+    ];
+
+    public function register(): void {}
 
     public function boot(): void
     {
-        // Compatibilité MySQL anciennes versions (utf8mb4 index limit)
+        $this->registerPolicies();
         Schema::defaultStringLength(191);
     }
 }

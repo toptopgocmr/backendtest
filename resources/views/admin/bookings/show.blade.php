@@ -21,6 +21,21 @@
       <button type="submit" class="btn btn-gold">✓ Terminer</button>
     </form>
     @endif
+
+    {{-- ✅ NOUVEAU : Annuler avec saisie de la raison --}}
+    @if(in_array($booking->status, ['en_attente', 'confirmé']))
+    <form action="{{ route('admin.bookings.cancel', $booking->reference) }}" method="POST"
+          style="display:flex;gap:8px;align-items:center"
+          onsubmit="return confirm('Confirmer l\'annulation de {{ $booking->reference }} ?')">
+      @csrf @method('PUT')
+      <input type="text" name="reason"
+             placeholder="Raison de l'annulation"
+             required minlength="3"
+             style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;min-width:200px;background:var(--bg)">
+      <button type="submit" class="btn btn-danger">✕ Annuler</button>
+    </form>
+    @endif
+
     <span class="badge-status {{ $booking->status }}" style="font-size:14px;padding:8px 16px">{{ $booking->status }}</span>
   </div>
 </div>

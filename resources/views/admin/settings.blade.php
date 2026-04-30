@@ -18,7 +18,7 @@
       </div>
       <div class="form-group">
         <label>Frais de service (%)</label>
-        <input type="number" class="form-control" value="5" readonly>
+        <input type="number" class="form-control" value="0" readonly>
       </div>
       <div class="form-group">
         <label>Devise par défaut</label>

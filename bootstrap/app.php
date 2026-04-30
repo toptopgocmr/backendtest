@@ -12,12 +12,16 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
         then: function () {
-            // Chargement des routes admin sous le groupe web
             \Illuminate\Support\Facades\Route::middleware('web')
                 ->group(base_path('routes/admin.php'));
         },
     )
     ->withMiddleware(function (Middleware $middleware) {
+
+        // ══════════════════════════════════════════════════════
+        //  CORS — doit être en PREMIER pour les requêtes OPTIONS
+        // ══════════════════════════════════════════════════════
+        $middleware->prepend(\Illuminate\Http\Middleware\HandleCors::class);
 
         // ══════════════════════════════════════════════════════
         //  FIX CRITIQUE — Laravel 11 enregistre route('login')
@@ -28,7 +32,6 @@ return Application::configure(basePath: dirname(__DIR__))
             if ($request->is('admin') || $request->is('admin/*')) {
                 return route('admin.login');
             }
-            // Routes API → pas de redirect, juste 401
             return null;
         });
 

@@ -56,20 +56,22 @@ class BookingController extends Controller
 
         $checkIn  = Carbon::parse($request->check_in);
         $checkOut = Carbon::parse($request->check_out);
-        $nights   = $checkIn->diffInDays($checkOut);
 
         $yesterday = Carbon::yesterday()->startOfDay();
         if ($checkIn->lt($yesterday)) {
             return response()->json([
                 'success' => false,
-                'message' => 'La date d\'arrivée ne peut pas être dans le passé.',
+                'message' => "La date d'arrivée ne peut pas être dans le passé.",
             ], 422);
         }
 
-        if ($nights < 1) {
+        $pricePeriod = $property->price_period ?? 'nuit';
+        $duration    = $this->calcDuration($checkIn, $checkOut, $pricePeriod);
+
+        if ($duration < 1) {
             return response()->json([
                 'success' => false,
-                'message' => "La durée du séjour doit être d'au moins 1 nuit.",
+                'message' => "La durée du séjour doit être d'au moins 1 {$pricePeriod}.",
             ], 422);
         }
 
@@ -94,27 +96,32 @@ class BookingController extends Controller
             ], 422);
         }
 
-        $baseAmount = round($price * $nights, 2);
-        $feesAmount = round($baseAmount * 0.05, 2);
+        $baseAmount = round($price * $duration, 2);
+        $feesAmount = 0;
         $total      = $baseAmount + $feesAmount;
 
+        $commissionRate   = $this->getOwnerCommissionRate($property);
+        $commissionAmount = round($baseAmount * ($commissionRate / 100), 2);
+        $ownerAmount      = round($baseAmount - $commissionAmount, 2);
+
         $booking = Booking::create([
-            'user_id'      => $request->user()->id,
-            'property_id'  => $request->property_id,
-            'check_in'     => $request->check_in,
-            'check_out'    => $request->check_out,
-            'nights'       => $nights,
-            'guests'       => $request->guests,
-            'base_amount'  => $baseAmount,
-            'fees_amount'  => $feesAmount,
-            'total_amount' => $total,
-            'currency'     => $property->currency ?? 'XAF',
-            'status'       => 'en_attente',
-            'notes'        => $request->notes,
+            'user_id'                 => $request->user()->id,
+            'property_id'             => $request->property_id,
+            'check_in'                => $checkIn,   // ← Carbon datetime complet
+            'check_out'               => $checkOut,  // ← Carbon datetime complet
+            'nights'                  => $duration,
+            'guests'                  => $request->guests,
+            'base_amount'             => $baseAmount,
+            'fees_amount'             => $feesAmount,
+            'total_amount'            => $total,
+            'commission_rate'         => $commissionRate,
+            'owner_commission_amount' => $commissionAmount,
+            'owner_amount'            => $ownerAmount,
+            'currency'                => $property->currency ?? 'XAF',
+            'status'                  => 'en_attente',
+            'notes'                   => $request->notes,
         ]);
 
-        // FIX : recharger avec les relations APRÈS création
-        // pour éviter le 500 si primaryImage est null
         $booking->load(['property.images', 'user']);
 
         Notification::create([
@@ -175,37 +182,69 @@ class BookingController extends Controller
         return response()->json(['success' => true, 'message' => 'Réservation confirmée.']);
     }
 
-    // ── Ressource ─────────────────────────────────────────────────────────────
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private function calcDuration(Carbon $checkIn, Carbon $checkOut, string $period): int
+    {
+        return match($period) {
+            'heure'   => max(1, $checkIn->diffInHours($checkOut)),
+            'nuit',
+            'jour'    => max(1, $checkIn->diffInDays($checkOut)),
+            'semaine' => max(1, (int) floor($checkIn->diffInDays($checkOut) / 7)),
+            'mois'    => max(1, $checkIn->diffInMonths($checkOut)),
+            'an'      => max(1, $checkIn->diffInYears($checkOut)),
+            default   => max(1, $checkIn->diffInDays($checkOut)),
+        };
+    }
+
+    private function getOwnerCommissionRate(Property $property): float
+    {
+        $ownerProfile = $property->owner?->ownerProfile ?? null;
+        if ($ownerProfile && $ownerProfile->commission_rate > 0) {
+            return (float) $ownerProfile->commission_rate;
+        }
+        return 10.0;
+    }
+
+    // ── Ressource API ─────────────────────────────────────────────────────────
+
     private function bookingResource(Booking $b): array
     {
-        // FIX : chercher dans toutes les images si primaryImage est null
         $image = $b->property?->primaryImage?->url
                ?? $b->property?->images?->first()?->url
                ?? null;
 
+        $pricePeriod = $b->property?->price_period ?? 'nuit';
+
         return [
-            'id'             => $b->id,
-            'reference'      => $b->reference,
-            'ref'            => $b->reference,
-            'check_in'       => $b->check_in?->format('Y-m-d'),
-            'check_out'      => $b->check_out?->format('Y-m-d'),
-            'nights'         => $b->nights,
-            'guests'         => $b->guests,
-            'base_amount'    => (float) $b->base_amount,
-            'fees_amount'    => (float) $b->fees_amount,
-            'total_amount'   => (float) $b->total_amount,
-            'currency'       => $b->currency ?? 'XAF',
-            'status'         => $b->status,
-            'notes'          => $b->notes,
-            'created_at'     => $b->created_at?->toISOString(),
-            'payment_status' => $b->payment?->status ?? 'non_payé',
-            'property'       => $b->property ? [
-                'id'          => $b->property->id,
-                'title'       => $b->property->title,
-                'name'        => $b->property->title,
-                'city'        => $b->property->city,
-                'image_url'   => $image,
-                'cover_image' => $image,
+            'id'                      => $b->id,
+            'reference'               => $b->reference,
+            'ref'                     => $b->reference,
+            'check_in'                => $b->check_in?->format('Y-m-d\TH:i:s'),   // ← FIX : datetime complet
+            'check_out'               => $b->check_out?->format('Y-m-d\TH:i:s'),  // ← FIX : datetime complet
+            'nights'                  => $b->nights,
+            'duration_unit'           => $pricePeriod,
+            'guests'                  => $b->guests,
+            'base_amount'             => (float) $b->base_amount,
+            'fees_amount'             => (float) $b->fees_amount,
+            'total_amount'            => (float) $b->total_amount,
+            'commission_rate'         => (float) ($b->commission_rate ?? 10),
+            'owner_commission_amount' => (float) ($b->owner_commission_amount ?? 0),
+            'owner_amount'            => (float) ($b->owner_amount ?? 0),
+            'currency'                => $b->currency ?? 'XAF',
+            'status'                  => $b->status,
+            'notes'                   => $b->notes,
+            'created_at'              => $b->created_at?->toISOString(),
+            'payment_status'          => $b->payment?->status ?? 'non_payé',
+            'property'                => $b->property ? [
+                'id'           => $b->property->id,
+                'title'        => $b->property->title,
+                'name'         => $b->property->title,
+                'city'         => $b->property->city,
+                'price'        => (float) $b->property->price,
+                'price_period' => $pricePeriod,
+                'image_url'    => $image,
+                'cover_image'  => $image,
             ] : null,
         ];
     }
