@@ -1,6 +1,12 @@
 {
   "build": {
-    "builder": "NIXPACKS"
+    "builder": "NIXPACKS",
+    "nixpacksPlan": {
+      "providers": ["php"],
+      "variables": {
+        "NIXPACKS_NODE_VERSION": "20"
+      }
+    }
   },
   "deploy": {
     "startCommand": "php artisan migrate --force && php artisan storage:link && php artisan serve --host=0.0.0.0 --port=$PORT"
