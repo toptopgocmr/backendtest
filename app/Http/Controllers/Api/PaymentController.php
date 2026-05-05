@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Storage;
 
 class PaymentController extends Controller
 {
-    // Les vrais numéros sont lus depuis .env (MTN_MOMO_NUMBER, AIRTEL_MONEY_NUMBER)
+    // ── Numéros lus depuis .env ───────────────────────────────────────────────
     public static function paymentNumbers(): array
     {
         return [
@@ -29,6 +29,7 @@ class PaymentController extends Controller
         ];
     }
 
+    // ── Initier un paiement (crée l'entrée Payment en statut en_attente) ─────
     public function initiate(Request $request): JsonResponse
     {
         $request->validate([
@@ -61,7 +62,7 @@ class PaymentController extends Controller
                 'success'     => false,
                 'message'     => 'Un paiement est déjà en cours ou validé pour cette réservation.',
                 'payment_ref' => $existing->reference ?? "PAY-{$existing->id}",
-                'booking_ref' => $booking->reference,
+                'booking_ref' => $booking->reference ?? "BK-{$booking->id}",
                 'payment'     => new PaymentResource($existing),
             ], 422);
         }
@@ -94,6 +95,7 @@ class PaymentController extends Controller
         ]);
     }
 
+    // ── Instructions de paiement pour une réservation ────────────────────────
     public function instructions(Booking $booking): JsonResponse
     {
         if ((int) $booking->user_id !== (int) auth()->id()) {
@@ -115,6 +117,7 @@ class PaymentController extends Controller
         ]);
     }
 
+    // ── Client soumet la preuve de paiement ──────────────────────────────────
     public function store(SubmitPaymentRequest $request, Booking $booking): JsonResponse
     {
         if ((int) $booking->user_id !== (int) auth()->id()) {
@@ -185,6 +188,7 @@ class PaymentController extends Controller
         }
     }
 
+    // ── Soumettre/mettre à jour une preuve via référence paiement ─────────────
     public function confirmManual(Request $request, string $paymentRef): JsonResponse
     {
         $payment = Payment::where('reference', $paymentRef)->first();
@@ -214,13 +218,12 @@ class PaymentController extends Controller
             'phone_number'   => 'required_without:phone|nullable|string|max:25',
             'proof'          => 'nullable|image|max:5120',
             'proof_image'    => 'nullable|image|max:5120',
-            'proof_base64'   => 'nullable|string', // ✅ Flutter Web
+            'proof_base64'   => 'nullable|string',
         ]);
 
         $transactionId = $request->provider_ref ?? $request->transaction_id;
         $phoneNumber   = $request->phone        ?? $request->phone_number;
 
-        // ✅ Upload : multipart (mobile) OU base64 (Flutter Web)
         $proofPath = $payment->proof_image;
         $proofFile = $request->file('proof') ?? $request->file('proof_image');
 
@@ -229,9 +232,9 @@ class PaymentController extends Controller
         } elseif ($request->filled('proof_base64')) {
             $imageData = base64_decode($request->proof_base64);
             $filename  = 'preuve_' . time() . '.jpg';
-            $path      = "payments/{$payment->booking_id}/{$filename}";
-            Storage::disk('public')->put($path, $imageData);
-            $proofPath = $path;
+            $storagePath = "payments/{$payment->booking_id}/{$filename}";
+            Storage::disk('public')->put($storagePath, $imageData);
+            $proofPath = $storagePath;
         }
 
         $payment->update([
@@ -265,6 +268,7 @@ class PaymentController extends Controller
         ]);
     }
 
+    // ── Statut d'un paiement (polling Flutter) ────────────────────────────────
     public function status(string $paymentRef): JsonResponse
     {
         $payment = Payment::where('reference', $paymentRef)->first();
@@ -289,6 +293,7 @@ class PaymentController extends Controller
         ]);
     }
 
+    // ── Détail d'un paiement + reçu final si validé ───────────────────────────
     public function show(string $paymentRef): JsonResponse
     {
         $payment = Payment::where('reference', $paymentRef)->first();
@@ -328,6 +333,7 @@ class PaymentController extends Controller
         return response()->json($response);
     }
 
+    // ── Historique paiements de l'utilisateur connecté ───────────────────────
     public function myPayments(Request $request): JsonResponse
     {
         $payments = Payment::where('user_id', auth()->id())
