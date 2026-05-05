@@ -1,4 +1,5 @@
 <?php
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -49,19 +50,12 @@ return new class extends Migration {
             $t->string('icon', 50)->default('check-circle');
         });
 
-        Schema::create('property_availability', function (Blueprint $t) {
-            $t->id();
-            $t->foreignId('property_id')->constrained()->cascadeOnDelete();
-            $t->date('unavailable_date');
-            $t->enum('reason', ['booking','manual','maintenance'])->default('booking');
-            $t->unsignedBigInteger('booking_id')->nullable();
-            $t->timestamp('created_at')->useCurrent();
-            $t->unique(['property_id','unavailable_date']);
-        });
+        // NOTE : property_availability (ancienne table) supprimée ici.
+        // Utiliser la migration 2026_03_31_000001_create_property_availabilities_table.php
+        // qui crée 'property_availabilities' (avec 's'), la version canonique.
     }
 
     public function down(): void {
-        Schema::dropIfExists('property_availability');
         Schema::dropIfExists('property_amenities');
         Schema::dropIfExists('property_images');
         Schema::dropIfExists('properties');

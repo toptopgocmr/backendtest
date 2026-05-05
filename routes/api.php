@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\PropertyController;
+use App\Http\Controllers\Api\PropertyPricingController;
 use App\Http\Controllers\Api\BookingController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\FavoriteController;
@@ -31,6 +32,12 @@ Route::prefix('v1')->group(function () {
     Route::get('properties/{id}',         [PropertyController::class, 'show']);
     Route::get('properties/{id}/reviews', [ReviewController::class, 'propertyReviews']);
 
+    // ── Grille tarifaire — lecture + calcul publics ──────────────────────────
+    // GET  /v1/properties/{id}/pricing           → liste des tarifs actifs
+    // POST /v1/properties/{id}/pricing/calculate → calcule le total pour durée donnée
+    Route::get('properties/{id}/pricing',           [PropertyPricingController::class, 'index']);
+    Route::post('properties/{id}/pricing/calculate',[PropertyPricingController::class, 'calculate']);
+
     // SUPPORT AGENT — Public
     Route::get('support/agent', [SupportController::class, 'agent']);
 
@@ -56,6 +63,12 @@ Route::prefix('v1')->group(function () {
         Route::delete('properties/{id}',      [PropertyController::class, 'destroy']);
         Route::post('properties/{id}/images', [PropertyController::class, 'uploadImages']);
 
+        // ── Grille tarifaire — écriture protégée (owner / admin) ────────────
+        // POST   /v1/properties/{id}/pricing          → créer/mettre à jour la grille
+        // DELETE /v1/properties/{id}/pricing/{period} → désactiver un tarif
+        Route::post('properties/{id}/pricing',              [PropertyPricingController::class, 'store']);
+        Route::delete('properties/{id}/pricing/{period}',   [PropertyPricingController::class, 'destroy']);
+
         // ───── BOOKINGS
         Route::prefix('bookings')->group(function () {
             Route::get('/',              [BookingController::class, 'index']);
@@ -63,16 +76,14 @@ Route::prefix('v1')->group(function () {
             Route::get('{ref}',          [BookingController::class, 'show']);
             Route::put('{ref}/cancel',   [BookingController::class, 'cancel']);
             Route::put('{ref}/confirm',  [BookingController::class, 'confirm']);
-            // Instructions et soumission de preuve liées à une réservation
             Route::get('{booking}/payment/instructions', [PaymentController::class, 'instructions']);
             Route::post('{booking}/payment',             [PaymentController::class, 'store']);
         });
 
         // ───── PAYMENTS
-        // IMPORTANT : routes statiques déclarées AVANT le wildcard {ref}
         Route::prefix('payments')->group(function () {
             Route::post('initiate',             [PaymentController::class, 'initiate']);
-            Route::get('/',                     [PaymentController::class, 'index']);
+            Route::get('my',                    [PaymentController::class, 'myPayments']);
             Route::get('{ref}/status',          [PaymentController::class, 'status']);
             Route::post('{ref}/confirm-manual', [PaymentController::class, 'confirmManual']);
             Route::get('{ref}',                 [PaymentController::class, 'show']);
@@ -89,14 +100,12 @@ Route::prefix('v1')->group(function () {
         Route::put('messages/{id}/read', [MessageController::class, 'markRead']);
 
         // ───── REVIEWS
-        // ⚠️  ReviewController::index()   — non implémenté, route commentée
-        // ⚠️  ReviewController::destroy() — non implémenté, route commentée
-        Route::post('reviews',        [ReviewController::class, 'store']);
-        Route::put('reviews/{id}',    [ReviewController::class, 'update']);
+        Route::post('reviews',     [ReviewController::class, 'store']);
+        Route::put('reviews/{id}', [ReviewController::class, 'update']);
 
         // ───── NOTIFICATIONS
-        Route::get('notifications',             [NotificationController::class, 'index']);
-        Route::put('notifications/read-all',    [NotificationController::class, 'readAll']);
-        Route::put('notifications/{id}/read',   [NotificationController::class, 'markRead']);
+        Route::get('notifications',           [NotificationController::class, 'index']);
+        Route::put('notifications/read-all',  [NotificationController::class, 'readAll']);
+        Route::put('notifications/{id}/read', [NotificationController::class, 'markRead']);
     });
 });

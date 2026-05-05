@@ -62,8 +62,12 @@ class PropertyController extends Controller
 
     public function show(string $id)
     {
-        $property = Property::with(['images', 'owner', 'amenities',
-            'reviews' => fn($q) => $q->where('is_visible', true)->with('user')->latest()->take(10)
+        $property = Property::with([
+            'images',
+            'owner',
+            'amenities',
+            'pricingGrids',
+            'reviews' => fn($q) => $q->where('is_visible', true)->with('user')->latest()->take(10),
         ])->findOrFail($id);
 
         $property->increment('views_count');
@@ -83,16 +87,18 @@ class PropertyController extends Controller
             'address'      => 'required|string',
             'city'         => 'required|string',
             'price'        => 'required|numeric|min:0',
-            'price_period' => 'required|in:nuit,semaine,mois,an',
+            'price_period' => 'required|in:heure,nuit,jour,semaine,mois,an',
             'bedrooms'     => 'required|integer|min:0',
             'bathrooms'    => 'required|integer|min:0',
             'max_guests'   => 'required|integer|min:1',
         ]);
 
         $property = Property::create(array_merge(
-            $request->only(['title', 'description', 'type', 'address', 'city', 'country',
-                           'district', 'latitude', 'longitude', 'price', 'price_period',
-                           'currency', 'bedrooms', 'bathrooms', 'max_guests', 'area']),
+            $request->only([
+                'title', 'description', 'type', 'address', 'city', 'country',
+                'district', 'latitude', 'longitude', 'price', 'price_period',
+                'currency', 'bedrooms', 'bathrooms', 'max_guests', 'area',
+            ]),
             [
                 'owner_id'    => $request->user()->id,
                 'status'      => 'disponible',
@@ -143,9 +149,9 @@ class PropertyController extends Controller
         $property   = Property::findOrFail($id);
         $hasPrimary = $property->images()->where('is_primary', true)->exists();
 
-        $cloudName = config('services.cloudinary.cloud_name');
-        $apiKey    = config('services.cloudinary.api_key');
-        $apiSecret = config('services.cloudinary.api_secret');
+        $cloudName     = config('services.cloudinary.cloud_name');
+        $apiKey        = config('services.cloudinary.api_key');
+        $apiSecret     = config('services.cloudinary.api_secret');
         $useCloudinary = $cloudName && $apiKey && $apiSecret;
 
         foreach ($request->file('images', []) as $i => $file) {
@@ -162,10 +168,9 @@ class PropertyController extends Controller
                 }
             }
 
-            // Fallback local — URL absolue obligatoire pour Flutter
             if (!$url) {
                 $path = $file->store("properties/{$id}", 'public');
-                $url  = url(\Storage::url($path)); // ex: https://monapp.railway.app/storage/properties/1/photo.jpg
+                $url  = url(\Storage::url($path));
             }
 
             PropertyImage::create([
@@ -175,7 +180,6 @@ class PropertyController extends Controller
                 'sort_order'  => $property->images()->count() + $i,
             ]);
 
-            // Une seule image primaire même si plusieurs uploads en même temps
             if (!$hasPrimary && $i === 0) {
                 $hasPrimary = true;
             }
@@ -188,11 +192,10 @@ class PropertyController extends Controller
         ]);
     }
 
-    // ── Ressources ──────────────────────────────────────────────
+    // ── Ressources ────────────────────────────────────────────────────────────
 
     private function listResource(Property $p): array
     {
-        // Charge la relation si absente (sécurité)
         if (!$p->relationLoaded('primaryImage')) {
             $p->load('primaryImage');
         }
@@ -218,20 +221,43 @@ class PropertyController extends Controller
             'reviews_count'   => $p->reviews_count,
             'is_featured'     => (bool) $p->is_featured,
             'status'          => $p->status,
-            'image_url'       => $imageUrl,   // URL absolue Cloudinary ou locale
+            'image_url'       => $imageUrl,
             'cover_image'     => $imageUrl,
         ];
     }
 
     private function detailResource(Property $p): array
     {
+        // Charge les relations manquantes si nécessaire
+        if (!$p->relationLoaded('pricingGrids')) {
+            $p->load('pricingGrids');
+        }
+
         return array_merge($this->listResource($p), [
-            'description' => $p->description,
-            'latitude'    => $p->latitude,
-            'longitude'   => $p->longitude,
-            'images'      => $p->images->pluck('url'),   // accesseur getUrlAttribute garanti absolu
-            'amenities'   => $p->amenities->map(fn($a) => ['name' => $a->name, 'icon' => $a->icon]),
-            'owner'       => $p->owner ? [
+            'description'   => $p->description,
+            'latitude'      => $p->latitude,
+            'longitude'     => $p->longitude,
+            'deposit'       => $p->deposit,
+            'contact_phone' => $p->contact_phone,
+            'duration_hours'=> $p->duration_hours,
+            'images'        => $p->images->pluck('url'),
+
+            // ── Grille tarifaire multi-périodes ──────────────────
+            // Si vide → le client utilise price/price_period du tarif de base
+            'pricing_grids' => $p->pricingGrids->map(fn($g) => [
+                'id'           => $g->id,
+                'period'       => $g->period,
+                'period_label' => $g->period_label,
+                'price'        => $g->price,
+                'min_duration' => $g->min_duration,
+                'formatted'    => $g->formatted_price,
+            ]),
+
+            'amenities' => $p->amenities->map(fn($a) => [
+                'name' => $a->name,
+                'icon' => $a->icon,
+            ]),
+            'owner' => $p->owner ? [
                 'id'         => $p->owner->id,
                 'name'       => $p->owner->name,
                 'avatar_url' => $p->owner->avatar_url,
@@ -240,8 +266,11 @@ class PropertyController extends Controller
                 'id'      => $r->id,
                 'rating'  => $r->rating,
                 'comment' => $r->comment,
-                'user'    => ['name' => $r->user?->name, 'avatar_url' => $r->user?->avatar_url],
-                'date'    => $r->created_at->diffForHumans(),
+                'user'    => [
+                    'name'       => $r->user?->name,
+                    'avatar_url' => $r->user?->avatar_url,
+                ],
+                'date' => $r->created_at->diffForHumans(),
             ]),
         ]);
     }

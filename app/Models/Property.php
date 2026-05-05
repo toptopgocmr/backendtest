@@ -36,21 +36,21 @@ class Property extends Model
         'views_count',
 
         // ── Champs ajoutés (migration 000001 — types étendus) ──
-        'capacity',       // capacité salle de réunion / événement
-        'floor',          // étage
+        'capacity',
+        'floor',
 
         // ── Champs ajoutés (migration 000005 — extra fields) ───
-        'deposit',        // caution / dépôt de garantie
-        'contact_phone',  // téléphone de contact de la propriété
-        'contact_email',  // email de contact de la propriété
-        'view_type',      // vue (fleuve, ville, jardin…)
-        'rules',          // règlement intérieur
-        'workstations',   // postes de travail (bureaux)
-        'terrain_type',   // type de terrain
-        'land_title',     // titre foncier
+        'deposit',
+        'contact_phone',
+        'contact_email',
+        'view_type',
+        'rules',
+        'workstations',
+        'terrain_type',
+        'land_title',
 
         // ── Champs ajoutés (migration 000010 — durée horaire) ──
-        'duration_hours', // durée min de location si price_period = heure
+        'duration_hours',
     ];
 
     protected $casts = [
@@ -110,6 +110,17 @@ class Property extends Model
         return $this->hasMany(PropertyAvailability::class);
     }
 
+    /**
+     * Grille tarifaire multi-périodes (heure, jour, nuit, semaine, mois, an).
+     * Ordre logique : heure → jour → nuit → semaine → mois → an
+     */
+    public function pricingGrids()
+    {
+        return $this->hasMany(PropertyPricingGrid::class)
+                    ->where('is_active', true)
+                    ->orderByRaw("FIELD(period, 'heure','jour','nuit','semaine','mois','an')");
+    }
+
     // ── Scopes ────────────────────────────────────────────────────────────────
 
     public function scopeActive($q)
@@ -138,9 +149,6 @@ class Property extends Model
         return number_format($this->price, 0, ',', ' ') . ' ' . $this->currency;
     }
 
-    /**
-     * Retourne le label du price_period (ex: "mois" → "Par mois")
-     */
     public function getPricePeriodLabelAttribute(): string
     {
         return match($this->price_period) {
@@ -152,6 +160,6 @@ class Property extends Model
             'an'      => 'Par an',
             'total'   => 'Prix total',
             default   => $this->price_period,
-        };
+        ];
     }
 }
