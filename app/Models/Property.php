@@ -10,7 +10,6 @@ class Property extends Model
     use HasFactory;
 
     protected $fillable = [
-        // ── Champs de base (migration 000002) ──────────────────
         'owner_id',
         'title',
         'description',
@@ -34,12 +33,8 @@ class Property extends Model
         'rating',
         'reviews_count',
         'views_count',
-
-        // ── Champs ajoutés (migration 000001 — types étendus) ──
         'capacity',
         'floor',
-
-        // ── Champs ajoutés (migration 000005 — extra fields) ───
         'deposit',
         'contact_phone',
         'contact_email',
@@ -48,22 +43,18 @@ class Property extends Model
         'workstations',
         'terrain_type',
         'land_title',
-
-        // ── Champs ajoutés (migration 000010 — durée horaire) ──
         'duration_hours',
     ];
 
     protected $casts = [
-        'is_featured'    => 'boolean',
-        'is_approved'    => 'boolean',
-        'latitude'       => 'float',
-        'longitude'      => 'float',
-        'price'          => 'float',
-        'rating'         => 'float',
-        'deposit'        => 'float',
+        'is_featured' => 'boolean',
+        'is_approved' => 'boolean',
+        'latitude'    => 'float',
+        'longitude'   => 'float',
+        'price'       => 'float',
+        'rating'      => 'float',
+        'deposit'     => 'float',
     ];
-
-    // ── Relations ─────────────────────────────────────────────────────────────
 
     public function owner()
     {
@@ -110,18 +101,12 @@ class Property extends Model
         return $this->hasMany(PropertyAvailability::class);
     }
 
-    /**
-     * Grille tarifaire multi-périodes (heure, jour, nuit, semaine, mois, an).
-     * Ordre logique : heure → jour → nuit → semaine → mois → an
-     */
     public function pricingGrids()
     {
         return $this->hasMany(PropertyPricingGrid::class)
                     ->where('is_active', true)
                     ->orderByRaw("FIELD(period, 'heure','jour','nuit','semaine','mois','an')");
     }
-
-    // ── Scopes ────────────────────────────────────────────────────────────────
 
     public function scopeActive($q)
     {
@@ -133,16 +118,12 @@ class Property extends Model
         return $q->where('is_featured', true);
     }
 
-    // ── Méthodes ──────────────────────────────────────────────────────────────
-
     public function updateRating(): void
     {
         $avg   = $this->reviews()->where('is_visible', true)->avg('rating') ?? 0;
         $count = $this->reviews()->where('is_visible', true)->count();
         $this->update(['rating' => round($avg, 2), 'reviews_count' => $count]);
     }
-
-    // ── Accesseurs ────────────────────────────────────────────────────────────
 
     public function getFormattedPriceAttribute(): string
     {
@@ -151,7 +132,7 @@ class Property extends Model
 
     public function getPricePeriodLabelAttribute(): string
     {
-        return match($this->price_period) {
+        return match ($this->price_period) {
             'heure'   => 'Par heure',
             'nuit'    => 'Par nuit',
             'jour'    => 'Par jour',
@@ -160,6 +141,6 @@ class Property extends Model
             'an'      => 'Par an',
             'total'   => 'Prix total',
             default   => $this->price_period,
-        ];
+        };
     }
 }
