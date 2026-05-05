@@ -14,8 +14,8 @@ class AdminSeeder extends Seeder
         DB::table('admins')->where('email', 'admin@immostay.com')->delete();
 
         DB::table('admins')->insert([
-            'name'       => 'Admin ImmoStay',
-            'email'      => 'admin@immostay.com',
+            'name'       => 'Admin TholadImmo',
+            'email'      => 'admin@tholad.com',
             'password'   => Hash::make('Admin@1234'),
             'role'       => 'admin',
             'is_active'  => true,
@@ -23,6 +23,6 @@ class AdminSeeder extends Seeder
             'updated_at' => now(),
         ]);
 
-        $this->command->info('✅ Admin créé : admin@immostay.com / Admin@1234');
+        $this->command->info('✅ Admin créé : admin@tholad.com / Admin@1234');
     }
 }
