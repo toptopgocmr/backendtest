@@ -14,16 +14,20 @@ use Illuminate\Support\Facades\Storage;
 
 class PaymentController extends Controller
 {
-    const PAYMENT_NUMBERS = [
-        'mtn_momo' => [
-            'number' => '+242 06 XXX XX XX',
-            'label'  => 'MTN MoMo',
-        ],
-        'airtel_money' => [
-            'number' => '+242 05 XXX XX XX',
-            'label'  => 'Airtel Money',
-        ],
-    ];
+    // Les vrais numéros sont lus depuis .env (MTN_MOMO_NUMBER, AIRTEL_MONEY_NUMBER)
+    public static function paymentNumbers(): array
+    {
+        return [
+            'mtn_momo' => [
+                'number' => env('MTN_MOMO_NUMBER', '+242 06 XXX XX XX'),
+                'label'  => 'MTN MoMo',
+            ],
+            'airtel_money' => [
+                'number' => env('AIRTEL_MONEY_NUMBER', '+242 05 XXX XX XX'),
+                'label'  => 'Airtel Money',
+            ],
+        ];
+    }
 
     public function initiate(Request $request): JsonResponse
     {
@@ -79,7 +83,7 @@ class PaymentController extends Controller
             'booking_id'      => $booking->id,
             'amount'          => $booking->total_amount,
             'currency'        => $booking->currency ?? 'XAF',
-            'payment_numbers' => self::PAYMENT_NUMBERS,
+            'payment_numbers' => self::paymentNumbers(),
             'instructions'    => [
                 "1. Envoyez {$booking->total_amount} XAF à l'un des numéros ci-dessous.",
                 "2. Notez l'ID de transaction affiché sur votre téléphone.",
@@ -100,7 +104,7 @@ class PaymentController extends Controller
             'success'         => true,
             'amount'          => $booking->total_amount,
             'currency'        => 'XAF',
-            'payment_numbers' => self::PAYMENT_NUMBERS,
+            'payment_numbers' => self::paymentNumbers(),
             'instructions'    => [
                 "1. Envoyez {$booking->total_amount} XAF à l'un des numéros ci-dessus.",
                 "2. Notez l'ID de transaction affiché sur votre téléphone.",
