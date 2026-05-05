@@ -50,11 +50,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('export-csv',     [BookingController::class, 'exportCsv'])->name('export-csv');
             Route::get('{ref}',          [BookingController::class, 'show'])->name('show');
             Route::put('{ref}/confirm',  [BookingController::class, 'confirm'])->name('confirm');
-            Route::put('{ref}/cancel',   [BookingController::class, 'cancel'])->name('cancel');   // ✅ FIX Bug 1
+            Route::put('{ref}/cancel',   [BookingController::class, 'cancel'])->name('cancel');
             Route::put('{ref}/complete', [BookingController::class, 'complete'])->name('complete');
         });
 
-        // PAYMENTS
+        // PAYMENTS (Blade — PaymentController)
         Route::prefix('payments')->name('payments.')->group(function () {
             Route::get('/',              [PaymentController::class, 'index'])->name('index');
             Route::get('export-csv',     [PaymentController::class, 'exportCsv'])->name('export-csv');
@@ -139,10 +139,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // SETTINGS
         Route::get('settings', fn () => view('admin.settings'))->name('settings');
 
-        // ── API JSON — ADMIN PAYMENTS ──────────────────────────────────────────
+        // ── API JSON — ADMIN PAYMENTS (AdminPaymentController) ────────────────
         Route::prefix('api/payments')->name('api.payments.')->group(function () {
             Route::get('/',                    [AdminPaymentController::class, 'index'])->name('index');
-            Route::get('{payment}',            [AdminPaymentController::class, 'show'])->name('show');
             Route::patch('{payment}/validate', [AdminPaymentController::class, 'validatePayment'])->name('validate');
             Route::patch('{payment}/reject',   [AdminPaymentController::class, 'reject'])->name('reject');
         });

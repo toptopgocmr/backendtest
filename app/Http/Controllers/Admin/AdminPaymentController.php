@@ -24,10 +24,17 @@ class AdminPaymentController extends Controller
         ]);
     }
 
-    public function validate(Request $request, Payment $payment)
+    // Renommé validate() → validatePayment() pour éviter le conflit avec Controller::validate()
+    public function validatePayment(Request $request, Payment $payment)
     {
-        $payment->update(['status' => 'validated']);
-        $payment->booking->update(['status' => 'confirmed']);
+        $payment->update([
+            'status'      => 'succès',
+            'paid_at'     => now(),
+            'verified_by' => auth()->id(),
+            'verified_at' => now(),
+        ]);
+
+        $payment->booking?->update(['status' => 'confirmé']);
 
         return response()->json([
             'message' => 'Paiement validé avec succès.',
@@ -37,7 +44,14 @@ class AdminPaymentController extends Controller
 
     public function reject(Request $request, Payment $payment)
     {
-        $payment->update(['status' => 'rejected']);
+        $request->validate(['reason' => 'nullable|string|max:255']);
+
+        $payment->update([
+            'status'     => 'échoué',
+            'admin_note' => $request->reason,
+        ]);
+
+        $payment->booking?->update(['status' => 'en_attente']);
 
         return response()->json([
             'message' => 'Paiement refusé.',
@@ -45,40 +59,28 @@ class AdminPaymentController extends Controller
         ]);
     }
 
-    // ----------------------------------------------------------------
-    // BUG 4 CORRIGÉ
-    // AVANT (incorrect) :
-    //   'method'       => $payment->payment_method,
-    //   'phone'        => $payment->phone_number,
-    //   'provider_ref' => $payment->transaction_id,
-    //
-    // APRÈS (correct — noms réels des colonnes en base) :
-    //   'method'       => $payment->method,
-    //   'phone'        => $payment->phone,
-    //   'provider_ref' => $payment->provider_ref,
-    // ----------------------------------------------------------------
     private function formatPayment(Payment $payment): array
     {
         return [
-            'id'            => $payment->id,
-            'reference'     => $payment->reference,
-            'amount'        => $payment->amount,
-            'status'        => $payment->status,
-            'is_confirmed'  => $payment->status === 'validated',
-
-            // ↓ CHAMPS CORRIGÉS
-            'method'        => $payment->method,        // était payment_method
-            'phone'         => $payment->phone,         // était phone_number
-            'provider_ref'  => $payment->provider_ref,  // était transaction_id
-
-            'proof_url'     => $payment->proof_url,
-            'created_at'    => $payment->created_at?->toISOString(),
-            'validated_at'  => $payment->validated_at?->toISOString(),
+            'id'           => $payment->id,
+            'reference'    => $payment->reference,
+            'amount'       => $payment->amount,
+            'status'       => $payment->status,
+            'is_confirmed' => $payment->status === 'succès',
+            'method'       => $payment->method,
+            'phone'        => $payment->phone,
+            'provider_ref' => $payment->provider_ref,
+            'proof_image'  => $payment->proof_image
+                ? asset('storage/' . $payment->proof_image)
+                : null,
+            'admin_note'   => $payment->admin_note,
+            'verified_at'  => $payment->verified_at?->toISOString(),
+            'created_at'   => $payment->created_at?->toISOString(),
 
             'booking' => $payment->booking ? [
                 'id'        => $payment->booking->id,
-                'reference' => $payment->booking->reference,
-                'property'  => $payment->booking->property?->name,
+                'reference' => $payment->booking->reference ?? "BK-{$payment->booking->id}",
+                'property'  => $payment->booking->property?->title,
                 'client'    => $payment->booking->user?->name,
                 'phone'     => $payment->booking->user?->phone,
             ] : null,

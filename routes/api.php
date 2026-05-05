@@ -32,13 +32,9 @@ Route::prefix('v1')->group(function () {
     Route::get('properties/{id}',         [PropertyController::class, 'show']);
     Route::get('properties/{id}/reviews', [ReviewController::class, 'propertyReviews']);
 
-    // ── Grille tarifaire — lecture + calcul publics ──────────────────────────
-    // GET  /v1/properties/{id}/pricing           → liste des tarifs actifs
-    // POST /v1/properties/{id}/pricing/calculate → calcule le total pour durée donnée
-    Route::get('properties/{id}/pricing',           [PropertyPricingController::class, 'index']);
-    Route::post('properties/{id}/pricing/calculate',[PropertyPricingController::class, 'calculate']);
+    Route::get('properties/{id}/pricing',            [PropertyPricingController::class, 'index']);
+    Route::post('properties/{id}/pricing/calculate', [PropertyPricingController::class, 'calculate']);
 
-    // SUPPORT AGENT — Public
     Route::get('support/agent', [SupportController::class, 'agent']);
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -63,19 +59,16 @@ Route::prefix('v1')->group(function () {
         Route::delete('properties/{id}',      [PropertyController::class, 'destroy']);
         Route::post('properties/{id}/images', [PropertyController::class, 'uploadImages']);
 
-        // ── Grille tarifaire — écriture protégée (owner / admin) ────────────
-        // POST   /v1/properties/{id}/pricing          → créer/mettre à jour la grille
-        // DELETE /v1/properties/{id}/pricing/{period} → désactiver un tarif
-        Route::post('properties/{id}/pricing',              [PropertyPricingController::class, 'store']);
-        Route::delete('properties/{id}/pricing/{period}',   [PropertyPricingController::class, 'destroy']);
+        Route::post('properties/{id}/pricing',             [PropertyPricingController::class, 'store']);
+        Route::delete('properties/{id}/pricing/{period}',  [PropertyPricingController::class, 'destroy']);
 
         // ───── BOOKINGS
         Route::prefix('bookings')->group(function () {
-            Route::get('/',              [BookingController::class, 'index']);
-            Route::post('/',             [BookingController::class, 'store']);
-            Route::get('{ref}',          [BookingController::class, 'show']);
-            Route::put('{ref}/cancel',   [BookingController::class, 'cancel']);
-            Route::put('{ref}/confirm',  [BookingController::class, 'confirm']);
+            Route::get('/',             [BookingController::class, 'index']);
+            Route::post('/',            [BookingController::class, 'store']);
+            Route::get('{ref}',         [BookingController::class, 'show']);
+            Route::put('{ref}/cancel',  [BookingController::class, 'cancel']);
+            Route::put('{ref}/confirm', [BookingController::class, 'confirm']);
             Route::get('{booking}/payment/instructions', [PaymentController::class, 'instructions']);
             Route::post('{booking}/payment',             [PaymentController::class, 'store']);
         });
@@ -90,8 +83,8 @@ Route::prefix('v1')->group(function () {
         });
 
         // ───── FAVORITES
-        Route::get('favorites',        [FavoriteController::class, 'index']);
-        Route::post('favorites/{id}',  [FavoriteController::class, 'toggle']);
+        Route::get('favorites',       [FavoriteController::class, 'index']);
+        Route::post('favorites/{id}', [FavoriteController::class, 'toggle']);
 
         // ───── MESSAGES
         Route::get('messages',           [MessageController::class, 'conversations']);
