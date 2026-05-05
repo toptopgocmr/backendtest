@@ -1,2 +1,18 @@
+[phases.setup]
+cmds = [
+    "mkdir -p /app/bootstrap/cache /app/storage/framework/cache /app/storage/framework/sessions /app/storage/framework/views /app/storage/logs",
+    "chmod -R 775 /app/bootstrap/cache /app/storage"
+]
+
+[phases.install]
+cmds = [
+    "mkdir -p /var/log/nginx && mkdir -p /var/cache/nginx",
+    "composer install --ignore-platform-reqs --no-scripts --no-interaction",
+    "npm i"
+]
+
 [phases.build]
 cmds = []
+
+[start]
+cmd = "php artisan config:clear && php artisan migrate --force && php artisan storage:link && php artisan serve --host=0.0.0.0 --port=$PORT"
