@@ -36,34 +36,24 @@
     <div class="card-header"><h3>📋 Informations</h3></div>
     <div style="padding:20px">
       @php
-        $habitTypes  = ['appartement','villa','studio','maison','chambre'];
-        $bureauTypes = ['bureau','salle_reunion'];
-        $feteTypes   = ['salle_fete'];
-        $terrainTypes= ['terrain','entrepot','commerce'];
+        $habitTypes   = ['appartement','villa','studio','maison','chambre'];
+        $bureauTypes  = ['bureau','salle_reunion'];
+        $feteTypes    = ['salle_fete'];
+        $terrainTypes = ['terrain','entrepot','commerce'];
         $type = $property->type;
 
         $periodeLabels = [
-          'heure'   => 'heure',
-          'nuit'    => 'nuit',
-          'jour'    => 'jour',
-          'semaine' => 'semaine',
-          'mois'    => 'mois',
-          'an'      => 'an',
-          'total'   => 'prix total',
+          'heure'   => 'heure', 'nuit' => 'nuit', 'jour' => 'jour',
+          'semaine' => 'semaine', 'mois' => 'mois', 'an' => 'an', 'total' => 'prix total',
         ];
         $periodeLabel = $periodeLabels[$property->price_period] ?? $property->price_period;
 
         $typeLabels = [
-          'appartement'  => 'Appartement',
-          'villa'        => 'Villa',
-          'studio'       => 'Studio',
-          'maison'       => 'Maison',
-          'chambre'      => 'Chambre',
-          'bureau'       => 'Bureau',
-          'salle_reunion'=> 'Salle de réunion',
-          'salle_fete'   => 'Salle des fêtes',
-          'terrain'      => 'Terrain',
-          'entrepot'     => 'Entrepôt',
+          'appartement'  => 'Appartement',  'villa'        => 'Villa',
+          'studio'       => 'Studio',        'maison'       => 'Maison',
+          'chambre'      => 'Chambre',        'bureau'       => 'Bureau',
+          'salle_reunion'=> 'Salle de réunion', 'salle_fete' => 'Salle des fêtes',
+          'terrain'      => 'Terrain',        'entrepot'     => 'Entrepôt',
           'commerce'     => 'Commerce',
         ];
         $typeLabel = $typeLabels[$type] ?? ucfirst($type);
@@ -71,10 +61,10 @@
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
 
-        {{-- Type & Prix : toujours affichés --}}
         <div><div style="font-size:11px;color:var(--txt3)">TYPE</div><div style="font-weight:600">{{ $typeLabel }}</div></div>
+
         <div>
-          <div style="font-size:11px;color:var(--txt3)">PRIX</div>
+          <div style="font-size:11px;color:var(--txt3)">TARIF PRINCIPAL</div>
           <div style="font-weight:700;color:var(--gold)">
             {{ number_format($property->price,0,',',' ') }} {{ $property->currency }} / {{ $periodeLabel }}
             @if($property->price_period === 'heure' && $property->duration_hours)
@@ -83,52 +73,71 @@
           </div>
         </div>
 
-        {{-- Champs HABITATION --}}
         @if(in_array($type, $habitTypes))
           <div><div style="font-size:11px;color:var(--txt3)">CHAMBRES</div><div style="font-weight:600">{{ $property->bedrooms ?? '—' }}</div></div>
           <div><div style="font-size:11px;color:var(--txt3)">SALLES DE BAIN</div><div style="font-weight:600">{{ $property->bathrooms ?? '—' }}</div></div>
           <div><div style="font-size:11px;color:var(--txt3)">PERSONNES MAX</div><div style="font-weight:600">{{ $property->max_guests ?? '—' }} personnes</div></div>
           <div><div style="font-size:11px;color:var(--txt3)">SURFACE</div><div style="font-weight:600">{{ $property->area ? $property->area.' m²' : '—' }}</div></div>
-          @if($property->floor)
-          <div><div style="font-size:11px;color:var(--txt3)">ÉTAGE</div><div style="font-weight:600">{{ $property->floor === 'rdc' ? 'Rez-de-chaussée' : $property->floor.'ème étage' }}</div></div>
-          @endif
-          @if($property->view_type)
-          <div><div style="font-size:11px;color:var(--txt3)">VUE</div><div style="font-weight:600">{{ ucfirst($property->view_type) }}</div></div>
-          @endif
         @endif
 
-        {{-- Champs BUREAU / SALLE DE RÉUNION --}}
         @if(in_array($type, $bureauTypes) || in_array($type, $feteTypes))
           <div><div style="font-size:11px;color:var(--txt3)">CAPACITÉ</div><div style="font-weight:600">{{ $property->capacity ?? '—' }} personnes</div></div>
           <div><div style="font-size:11px;color:var(--txt3)">SURFACE</div><div style="font-weight:600">{{ $property->area ? $property->area.' m²' : '—' }}</div></div>
-          @if($property->floor)
-          <div><div style="font-size:11px;color:var(--txt3)">ÉTAGE</div><div style="font-weight:600">{{ $property->floor === 'rdc' ? 'Rez-de-chaussée' : $property->floor.'ème étage' }}</div></div>
-          @endif
           @if($property->workstations)
           <div><div style="font-size:11px;color:var(--txt3)">POSTES DE TRAVAIL</div><div style="font-weight:600">{{ $property->workstations }}</div></div>
           @endif
         @endif
 
-        {{-- Champs TERRAIN / ENTREPÔT / COMMERCE --}}
         @if(in_array($type, $terrainTypes))
           <div><div style="font-size:11px;color:var(--txt3)">SUPERFICIE</div><div style="font-weight:600">{{ $property->area ? number_format($property->area,0,',',' ').' m²' : '—' }}</div></div>
-          @if($property->terrain_type)
-          <div><div style="font-size:11px;color:var(--txt3)">TYPE DE TERRAIN</div><div style="font-weight:600">{{ ucfirst($property->terrain_type) }}</div></div>
-          @endif
-          @if($property->land_title)
-          <div><div style="font-size:11px;color:var(--txt3)">TITRE FONCIER</div><div style="font-weight:600">{{ $property->land_title }}</div></div>
-          @endif
         @endif
 
-        {{-- Note & Vues : toujours affichées --}}
         <div><div style="font-size:11px;color:var(--txt3)">NOTE MOYENNE</div><div style="font-weight:600">⭐ {{ $property->rating ?? 0 }} ({{ $property->reviews_count ?? 0 }} avis)</div></div>
         <div><div style="font-size:11px;color:var(--txt3)">VUES</div><div style="font-weight:600">👁 {{ $property->views_count ?? 0 }}</div></div>
-
       </div>
+
+      {{-- ═══ GRILLE TARIFAIRE ═══ --}}
+      @if($property->pricingGrids->count())
+      <div style="border-top:1px solid var(--border);padding-top:16px;margin-top:4px;margin-bottom:16px">
+        <div style="font-size:12px;color:var(--txt3);font-weight:700;text-transform:uppercase;margin-bottom:12px;">
+          <i class="fas fa-layer-group" style="margin-right:4px;color:var(--gold)"></i> Grille tarifaire disponible
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:10px;">
+          @php
+          $periodIcons = [
+            'heure'   => 'clock',       'jour'    => 'sun',
+            'nuit'    => 'moon',         'semaine' => 'calendar-week',
+            'mois'    => 'calendar-alt', 'an'      => 'calendar',
+          ];
+          $periodLabelsGrid = [
+            'heure'=>'Heure','jour'=>'Jour','nuit'=>'Nuit',
+            'semaine'=>'Semaine','mois'=>'Mois','an'=>'An',
+          ];
+          @endphp
+          @foreach($property->pricingGrids as $grid)
+          <div style="border:1px solid var(--border);border-radius:12px;padding:12px 16px;min-width:120px;text-align:center;background:var(--bg-soft);">
+            <div style="font-size:11px;color:var(--txt3);margin-bottom:4px;">
+              <i class="fas fa-{{ $periodIcons[$grid->period] ?? 'tag' }}"></i>
+              {{ $periodLabelsGrid[$grid->period] ?? ucfirst($grid->period) }}
+            </div>
+            <div style="font-size:16px;font-weight:700;color:var(--gold);">
+              {{ number_format($grid->price, 0, ',', ' ') }}
+            </div>
+            <div style="font-size:11px;color:var(--txt3);">{{ $property->currency }}</div>
+            @if($grid->min_duration > 1)
+            <div style="font-size:10px;color:var(--txt3);margin-top:3px;">min. {{ $grid->min_duration }}</div>
+            @endif
+          </div>
+          @endforeach
+        </div>
+      </div>
+      @endif
+
       <div style="border-top:1px solid var(--border);padding-top:14px">
         <div style="font-size:12px;color:var(--txt3);margin-bottom:6px">DESCRIPTION</div>
         <p style="color:var(--txt2);line-height:1.7;font-size:13.5px">{{ $property->description ?? 'Aucune description.' }}</p>
       </div>
+
       @if($property->amenities->count())
       <div style="border-top:1px solid var(--border);padding-top:14px;margin-top:14px">
         <div style="font-size:12px;color:var(--txt3);margin-bottom:10px">ÉQUIPEMENTS</div>
@@ -142,7 +151,7 @@
     </div>
   </div>
 
-  <!-- Owner -->
+  <!-- Owner + Stats -->
   <div>
     <div class="card" style="margin-bottom:16px">
       <div class="card-header"><h3>🧑 Propriétaire</h3></div>
@@ -159,7 +168,6 @@
       </div>
     </div>
 
-    <!-- Stats -->
     <div class="card">
       <div class="card-header"><h3>📊 Statistiques</h3></div>
       <div style="padding:16px 20px">
@@ -180,7 +188,6 @@
   </div>
 </div>
 
-<!-- Recent bookings for this property -->
 @if($property->bookings->count())
 <div class="card">
   <div class="card-header"><h3>📅 Réservations récentes</h3></div>

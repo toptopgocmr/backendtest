@@ -24,7 +24,7 @@
 </div>
 @endif
 
-<!-- ═══ ÉTAPE 1 : TYPE DE BIEN ═══ -->
+<!-- ═══ TYPE DE BIEN ═══ -->
 <div class="card" style="margin-bottom:20px;">
   <div class="card-header">
     <i class="fas fa-home" style="color:var(--tholad-blue);"></i>
@@ -36,17 +36,17 @@
       <div id="type-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-top:8px;">
         @php
         $types = [
-          'appartement' => ['icon'=>'building','label'=>'Appartement'],
-          'villa'       => ['icon'=>'home','label'=>'Villa'],
-          'studio'      => ['icon'=>'door-open','label'=>'Studio'],
-          'maison'      => ['icon'=>'house-user','label'=>'Maison'],
-          'chambre'     => ['icon'=>'bed','label'=>'Chambre'],
-          'bureau'      => ['icon'=>'briefcase','label'=>'Bureau'],
-          'salle_reunion'=>['icon'=>'chalkboard-teacher','label'=>'Salle de réunion'],
-          'salle_fete'  => ['icon'=>'glass-cheers','label'=>'Salle des fêtes'],
-          'terrain'     => ['icon'=>'map','label'=>'Terrain'],
-          'entrepot'    => ['icon'=>'warehouse','label'=>'Entrepôt'],
-          'commerce'    => ['icon'=>'store','label'=>'Commerce'],
+          'appartement'  => ['icon'=>'building',            'label'=>'Appartement'],
+          'villa'        => ['icon'=>'home',                 'label'=>'Villa'],
+          'studio'       => ['icon'=>'door-open',            'label'=>'Studio'],
+          'maison'       => ['icon'=>'house-user',           'label'=>'Maison'],
+          'chambre'      => ['icon'=>'bed',                  'label'=>'Chambre'],
+          'bureau'       => ['icon'=>'briefcase',            'label'=>'Bureau'],
+          'salle_reunion'=> ['icon'=>'chalkboard-teacher',   'label'=>'Salle de réunion'],
+          'salle_fete'   => ['icon'=>'glass-cheers',         'label'=>'Salle des fêtes'],
+          'terrain'      => ['icon'=>'map',                  'label'=>'Terrain'],
+          'entrepot'     => ['icon'=>'warehouse',            'label'=>'Entrepôt'],
+          'commerce'     => ['icon'=>'store',                'label'=>'Commerce'],
         ];
         @endphp
         @foreach($types as $val => $t)
@@ -75,7 +75,7 @@
     <div style="padding:22px;">
       <div class="form-group">
         <label>Titre de l'annonce *</label>
-        <input type="text" name="title" class="form-control" value="{{ old('title') }}" required placeholder="Ex: Villa Luxe avec piscine — Plateau">
+        <input type="text" name="title" class="form-control" value="{{ old('title') }}" required placeholder="Ex: Bureau Coworking Vue Mer — Centre-ville">
       </div>
       <div class="form-group">
         <label>Description détaillée *</label>
@@ -96,56 +96,152 @@
     </div>
   </div>
 
-  <!-- Prix et conditions -->
+  <!-- ═══ PRIX ET CONDITIONS ═══ -->
   <div class="card" style="margin-bottom:20px;">
     <div class="card-header">
       <i class="fas fa-tags" style="color:var(--tholad-blue);"></i>
       <h3>Prix et conditions</h3>
     </div>
     <div style="padding:22px;">
-      <div class="grid-2">
-        <div class="form-group">
-          <label>Prix *</label>
-          <div style="position:relative;">
-            <input type="number" name="price" class="form-control" value="{{ old('price') }}" required min="0" step="500" placeholder="0" style="padding-right:60px;">
-            <span style="position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--txt3);font-size:12px;">XAF</span>
-          </div>
+
+      {{-- Tarif principal --}}
+      <div style="background:var(--bg-soft);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:20px;">
+        <div style="font-size:12px;font-weight:700;color:var(--tholad-blue);text-transform:uppercase;letter-spacing:.5px;margin-bottom:14px;">
+          <i class="fas fa-star" style="margin-right:6px;"></i>Tarif principal *
         </div>
-        <div class="form-group">
-          <label>Période de facturation *</label>
-          <select name="price_period" id="price-period-select" class="form-control" required>
-            <option value="heure"  {{ old('price_period')=='heure'?'selected':'' }}>Par heure</option>
-            <option value="nuit"   {{ old('price_period')=='nuit'?'selected':'' }}>Par nuit</option>
-            <option value="jour"   {{ old('price_period','jour')=='jour'?'selected':'' }}>Par jour</option>
-            <option value="semaine"{{ old('price_period')=='semaine'?'selected':'' }}>Par semaine</option>
-            <option value="mois"   {{ old('price_period')=='mois'?'selected':'' }}>Par mois</option>
-            <option value="an"     {{ old('price_period')=='an'?'selected':'' }}>Par an</option>
-            <option value="total"  {{ old('price_period')=='total'?'selected':'' }}>Prix total</option>
-          </select>
-        </div>
-      </div>
-      <!-- Champ durée en heures (visible seulement si période = heure) -->
-      <div id="heures-field" style="display:none;margin-bottom:16px;">
         <div class="grid-2">
-          <div class="form-group">
-            <label><i class="fas fa-clock" style="color:var(--tholad-blue);"></i> Durée minimale de location *</label>
-            <select name="duration_hours" id="duration-hours-select" class="form-control">
-              <option value="">— Choisir la durée —</option>
-              @for($h=1;$h<=12;$h++)
-              <option value="{{ $h }}" {{ old('duration_hours')==$h?'selected':'' }}>{{ $h }} heure{{ $h>1?'s':'' }}</option>
-              @endfor
-              <option value="24" {{ old('duration_hours')==24?'selected':'' }}>Journée complète (24h)</option>
+          <div class="form-group" style="margin-bottom:0;">
+            <label>Prix *</label>
+            <div style="position:relative;">
+              <input type="number" name="price" id="main-price-input" class="form-control"
+                     value="{{ old('price') }}" required min="0" step="500"
+                     placeholder="0" style="padding-right:60px;">
+              <span style="position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--txt3);font-size:12px;">XAF</span>
+            </div>
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label>Période *</label>
+            <select name="price_period" id="price-period-select" class="form-control" required>
+              <option value="heure"   {{ old('price_period')=='heure'  ?'selected':'' }}>Par heure</option>
+              <option value="jour"    {{ old('price_period','jour')=='jour'?'selected':'' }}>Par jour</option>
+              <option value="nuit"    {{ old('price_period')=='nuit'   ?'selected':'' }}>Par nuit</option>
+              <option value="semaine" {{ old('price_period')=='semaine'?'selected':'' }}>Par semaine</option>
+              <option value="mois"    {{ old('price_period')=='mois'   ?'selected':'' }}>Par mois</option>
+              <option value="an"      {{ old('price_period')=='an'     ?'selected':'' }}>Par an</option>
+              <option value="total"   {{ old('price_period')=='total'  ?'selected':'' }}>Prix total</option>
             </select>
           </div>
-          <div class="form-group">
-            <label><i class="fas fa-calculator" style="color:var(--tholad-blue);"></i> Aperçu tarif</label>
-            <div style="background:var(--bg-soft);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:14px;min-height:42px;display:flex;align-items:center;">
-              <span id="tarif-apercu-text" style="color:var(--txt3);">Saisissez prix + heures</span>
+        </div>
+        {{-- Durée min si heure --}}
+        <div id="heures-field" style="display:none;margin-top:14px;">
+          <div class="grid-2">
+            <div class="form-group" style="margin-bottom:0;">
+              <label><i class="fas fa-clock" style="color:var(--tholad-blue);"></i> Durée minimale *</label>
+              <select name="duration_hours" id="duration-hours-select" class="form-control">
+                <option value="">— Choisir —</option>
+                @for($h=1;$h<=12;$h++)
+                <option value="{{ $h }}" {{ old('duration_hours')==$h?'selected':'' }}>{{ $h }} heure{{ $h>1?'s':'' }}</option>
+                @endfor
+                <option value="24" {{ old('duration_hours')==24?'selected':'' }}>Journée complète (24h)</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label><i class="fas fa-calculator" style="color:var(--tholad-blue);"></i> Aperçu tarif</label>
+              <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:14px;min-height:42px;display:flex;align-items:center;">
+                <span id="tarif-apercu-text" style="color:var(--txt3);">Saisissez prix + heures</span>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
+      {{-- Grille tarifaire multi-périodes --}}
+      <div style="margin-bottom:20px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <div>
+            <div style="font-size:13px;font-weight:700;color:var(--navy);">
+              <i class="fas fa-layer-group" style="color:var(--tholad-blue);margin-right:6px;"></i>
+              Grille tarifaire complète
+            </div>
+            <div style="font-size:12px;color:var(--txt3);margin-top:2px;">
+              Plusieurs tarifs — le client choisit sa période lors de la réservation
+            </div>
+          </div>
+          <button type="button" id="toggle-pricing-grid" class="btn btn-outline btn-sm">
+            <i class="fas fa-chevron-down" id="pricing-grid-icon"></i> Afficher
+          </button>
+        </div>
+
+        <div id="pricing-grid-wrapper" style="display:none;">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+            @php
+            $pricingPeriods = [
+              'heure'   => ['icon'=>'clock',        'label'=>'Par heure',    'placeholder'=>'5 000',    'hint'=>'ex: 5 000 XAF/h',     'unit'=>'h'],
+              'jour'    => ['icon'=>'sun',           'label'=>'Par jour',     'placeholder'=>'25 000',   'hint'=>'ex: 25 000 XAF/j',    'unit'=>'j'],
+              'nuit'    => ['icon'=>'moon',          'label'=>'Par nuit',     'placeholder'=>'30 000',   'hint'=>'ex: 30 000 XAF/nuit', 'unit'=>'nuit(s)'],
+              'semaine' => ['icon'=>'calendar-week', 'label'=>'Par semaine',  'placeholder'=>'150 000',  'hint'=>'ex: 150 000 XAF/sem', 'unit'=>'sem.'],
+              'mois'    => ['icon'=>'calendar-alt',  'label'=>'Par mois',     'placeholder'=>'400 000',  'hint'=>'ex: 400 000 XAF/mois','unit'=>'mois'],
+              'an'      => ['icon'=>'calendar',      'label'=>'Par an',       'placeholder'=>'4 500 000','hint'=>'ex: 4 500 000 XAF/an','unit'=>'an(s)'],
+            ];
+            @endphp
+
+            @foreach($pricingPeriods as $period => $cfg)
+            <div class="pricing-period-card" data-period="{{ $period }}"
+                 style="border:2px solid var(--border);border-radius:10px;padding:14px;transition:border-color .2s,box-shadow .2s;">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+                <div style="width:30px;height:30px;background:var(--tholad-blue);border-radius:8px;display:flex;align-items:center;justify-content:center;">
+                  <i class="fas fa-{{ $cfg['icon'] }}" style="color:#fff;font-size:13px;"></i>
+                </div>
+                <div>
+                  <div style="font-size:12px;font-weight:700;color:var(--navy);">{{ $cfg['label'] }}</div>
+                  <div style="font-size:11px;color:var(--txt3);">{{ $cfg['hint'] }}</div>
+                </div>
+              </div>
+              <div class="form-group" style="margin-bottom:8px;">
+                <label style="font-size:11px;">Prix (XAF)</label>
+                <div style="position:relative;">
+                  <input type="number"
+                         name="pricing[{{ $period }}][price]"
+                         class="form-control pricing-price-input"
+                         data-period="{{ $period }}"
+                         value="{{ old("pricing.{$period}.price") }}"
+                         min="0" step="500"
+                         placeholder="{{ $cfg['placeholder'] }}"
+                         style="padding-right:44px;font-size:13px;">
+                  <span style="position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--txt3);">XAF</span>
+                </div>
+              </div>
+              <div class="form-group" style="margin-bottom:0;">
+                <label style="font-size:11px;">Durée minimale</label>
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <input type="number"
+                         name="pricing[{{ $period }}][min_duration]"
+                         class="form-control"
+                         value="{{ old("pricing.{$period}.min_duration", 1) }}"
+                         min="1"
+                         style="width:70px;font-size:13px;">
+                  <span style="font-size:12px;color:var(--txt3);">{{ $cfg['unit'] }}</span>
+                </div>
+              </div>
+              <div class="pricing-badge" data-period="{{ $period }}"
+                   style="display:none;margin-top:8px;padding:3px 8px;background:#e8f5e9;border:1px solid #c8e6c9;border-radius:20px;font-size:11px;color:#2e7d32;text-align:center;">
+                ✓ Tarif actif
+              </div>
+            </div>
+            @endforeach
+          </div>
+
+          {{-- Récapitulatif --}}
+          <div id="pricing-summary" style="display:none;margin-top:16px;background:var(--bg-soft);border:1px solid var(--border);border-radius:10px;padding:14px;">
+            <div style="font-size:12px;font-weight:700;color:var(--txt3);text-transform:uppercase;margin-bottom:10px;">
+              <i class="fas fa-eye" style="margin-right:4px;"></i> Récapitulatif grille tarifaire
+            </div>
+            <div id="pricing-summary-list" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+          </div>
+        </div>
+      </div>
+
+      {{-- Devise & Caution --}}
       <div class="grid-2">
         <div class="form-group">
           <label>Devise</label>
@@ -206,7 +302,7 @@
     </div>
   </div>
 
-  <!-- Contact de la propriété -->
+  <!-- Contact -->
   <div class="card" style="margin-bottom:20px;">
     <div class="card-header">
       <i class="fas fa-phone" style="color:var(--tholad-blue);"></i>
@@ -220,7 +316,7 @@
             <select id="phone-indicatif-prop" style="width:100px;flex-shrink:0;" class="form-control">
               <option value="+242">🇨🇬 +242</option>
             </select>
-            <input type="text" name="contact_phone" class="form-control" value="{{ old('contact_phone') }}" placeholder="06 XXX XX XX" id="phone-number-prop">
+            <input type="text" name="contact_phone" class="form-control" value="{{ old('contact_phone') }}" placeholder="06 XXX XX XX">
           </div>
         </div>
         <div class="form-group">
@@ -236,7 +332,7 @@
 <!-- ═══ COLONNE DROITE ═══ -->
 <div>
 
-  <!-- Photos de la propriété -->
+  <!-- Photos -->
   <div class="card" style="margin-bottom:20px;">
     <div class="card-header">
       <i class="fas fa-images" style="color:var(--tholad-blue);"></i>
@@ -244,10 +340,8 @@
     </div>
     <div style="padding:22px;">
       <p style="font-size:12px;color:var(--txt3);margin-bottom:14px;">
-        <i class="fas fa-info-circle"></i> Ajoutez entre 4 et 20 photos. La première sera l'image principale. Formats acceptés : JPG, PNG, WebP. Max 5 Mo par image.
+        <i class="fas fa-info-circle"></i> Ajoutez entre 4 et 20 photos. La première sera l'image principale. Formats : JPG, PNG, WebP. Max 5 Mo par image.
       </p>
-
-      <!-- Zone de drag & drop -->
       <div id="image-dropzone" onclick="document.getElementById('images-input').click()"
            style="border:2px dashed var(--border);border-radius:12px;padding:30px;text-align:center;cursor:pointer;background:var(--bg-soft);transition:all .2s;margin-bottom:16px;">
         <i class="fas fa-cloud-upload-alt" style="font-size:32px;color:var(--tholad-blue);margin-bottom:10px;display:block;"></i>
@@ -255,14 +349,12 @@
         <div style="font-size:12px;color:var(--txt3);">JPG, PNG, WebP — minimum 4 photos recommandées</div>
       </div>
       <input type="file" name="images[]" id="images-input" multiple accept="image/jpeg,image/png,image/webp" style="display:none">
-
-      <!-- Prévisualisation -->
       <div id="image-preview-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;"></div>
       <div id="image-count-msg" style="font-size:12px;color:var(--txt3);margin-top:8px;text-align:center;"></div>
     </div>
   </div>
 
-  <!-- Caractéristiques générales -->
+  <!-- Caractéristiques -->
   <div class="card" style="margin-bottom:20px;">
     <div class="card-header">
       <i class="fas fa-sliders-h" style="color:var(--tholad-blue);"></i>
@@ -270,7 +362,7 @@
     </div>
     <div style="padding:22px;">
 
-      <!-- Champs pour habitations (appartement, villa, studio, maison, chambre) -->
+      <!-- Habitation -->
       <div id="fields-habitation" class="type-fields">
         <div class="grid-2">
           <div class="form-group">
@@ -307,18 +399,18 @@
             <label>Vue</label>
             <select name="view_type" class="form-control">
               <option value="">—</option>
-              <option value="fleuve"   {{ old('view_type')=='fleuve'?'selected':'' }}>Vue fleuve / mer</option>
-              <option value="ville"    {{ old('view_type')=='ville'?'selected':'' }}>Vue ville</option>
-              <option value="jardin"   {{ old('view_type')=='jardin'?'selected':'' }}>Vue jardin</option>
-              <option value="piscine"  {{ old('view_type')=='piscine'?'selected':'' }}>Vue piscine</option>
-              <option value="montagne" {{ old('view_type')=='montagne'?'selected':'' }}>Vue montagne</option>
-              <option value="interieur"{{ old('view_type')=='interieur'?'selected':'' }}>Vue intérieure</option>
+              <option value="fleuve"    {{ old('view_type')=='fleuve'   ?'selected':'' }}>Vue fleuve / mer</option>
+              <option value="ville"     {{ old('view_type')=='ville'    ?'selected':'' }}>Vue ville</option>
+              <option value="jardin"    {{ old('view_type')=='jardin'   ?'selected':'' }}>Vue jardin</option>
+              <option value="piscine"   {{ old('view_type')=='piscine'  ?'selected':'' }}>Vue piscine</option>
+              <option value="montagne"  {{ old('view_type')=='montagne' ?'selected':'' }}>Vue montagne</option>
+              <option value="interieur" {{ old('view_type')=='interieur'?'selected':'' }}>Vue intérieure</option>
             </select>
           </div>
         </div>
       </div>
 
-      <!-- Champs pour bureaux/salles de réunion -->
+      <!-- Bureau / Salle réunion -->
       <div id="fields-bureau" class="type-fields" style="display:none;">
         <div class="grid-2">
           <div class="form-group">
@@ -348,7 +440,7 @@
         </div>
       </div>
 
-      <!-- Champs pour terrain -->
+      <!-- Terrain -->
       <div id="fields-terrain" class="type-fields" style="display:none;">
         <div class="grid-2">
           <div class="form-group">
@@ -360,9 +452,9 @@
             <select name="terrain_type" class="form-control">
               <option value="">—</option>
               <option value="constructible" {{ old('terrain_type')=='constructible'?'selected':'' }}>Constructible</option>
-              <option value="agricole"      {{ old('terrain_type')=='agricole'?'selected':'' }}>Agricole</option>
-              <option value="commercial"    {{ old('terrain_type')=='commercial'?'selected':'' }}>Commercial</option>
-              <option value="industriel"    {{ old('terrain_type')=='industriel'?'selected':'' }}>Industriel</option>
+              <option value="agricole"      {{ old('terrain_type')=='agricole'     ?'selected':'' }}>Agricole</option>
+              <option value="commercial"    {{ old('terrain_type')=='commercial'   ?'selected':'' }}>Commercial</option>
+              <option value="industriel"    {{ old('terrain_type')=='industriel'   ?'selected':'' }}>Industriel</option>
             </select>
           </div>
         </div>
@@ -383,18 +475,17 @@
     </div>
     <div style="padding:22px;">
 
-      <!-- Commodités essentielles -->
       <div style="margin-bottom:16px;">
         <div style="font-size:12px;font-weight:600;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">Essentiels</div>
         <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;">
           @php
           $essentials = [
-            'has_wifi'         => ['WiFi / Internet','wifi'],
-            'has_electricity'  => ['Électricité','bolt'],
-            'has_water'        => ['Eau courante','tint'],
-            'has_generator'    => ['Groupe électrogène','charging-station'],
-            'has_security'     => ['Gardiennage / Sécurité','shield-alt'],
-            'has_parking'      => ['Parking','parking'],
+            'has_wifi'        => ['WiFi / Internet',       'wifi'],
+            'has_electricity' => ['Électricité',            'bolt'],
+            'has_water'       => ['Eau courante',           'tint'],
+            'has_generator'   => ['Groupe électrogène',     'charging-station'],
+            'has_security'    => ['Gardiennage / Sécurité', 'shield-alt'],
+            'has_parking'     => ['Parking',                'parking'],
           ];
           @endphp
           @foreach($essentials as $key => $item)
@@ -407,22 +498,21 @@
         </div>
       </div>
 
-      <!-- Confort -->
-      <div id="amenities-confort" style="margin-bottom:16px;" class="type-fields">
+      <div id="amenities-confort" style="margin-bottom:16px;">
         <div style="font-size:12px;font-weight:600;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">Confort</div>
         <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;">
           @php
           $comfort = [
-            'has_clim'        => ['Climatisation','wind'],
-            'has_heating'     => ['Chauffage','fire'],
-            'has_pool'        => ['Piscine','swimming-pool'],
-            'has_garden'      => ['Jardin / Terrasse','leaf'],
-            'has_elevator'    => ['Ascenseur','chevron-circle-up'],
-            'has_balcony'     => ['Balcon / Véranda','archway'],
-            'has_kitchen'     => ['Cuisine équipée','utensils'],
-            'has_laundry'     => ['Lave-linge / Blanchisserie','tshirt'],
-            'has_tv'          => ['Télévision','tv'],
-            'has_gym'         => ['Salle de sport','dumbbell'],
+            'has_clim'     => ['Climatisation',         'wind'],
+            'has_heating'  => ['Chauffage',              'fire'],
+            'has_pool'     => ['Piscine',                'swimming-pool'],
+            'has_garden'   => ['Jardin / Terrasse',      'leaf'],
+            'has_elevator' => ['Ascenseur',              'chevron-circle-up'],
+            'has_balcony'  => ['Balcon / Véranda',       'archway'],
+            'has_kitchen'  => ['Cuisine équipée',        'utensils'],
+            'has_laundry'  => ['Lave-linge',             'tshirt'],
+            'has_tv'       => ['Télévision',             'tv'],
+            'has_gym'      => ['Salle de sport',         'dumbbell'],
           ];
           @endphp
           @foreach($comfort as $key => $item)
@@ -435,18 +525,17 @@
         </div>
       </div>
 
-      <!-- Bureaux/réunions spécifiques -->
       <div id="amenities-bureau" style="margin-bottom:16px;display:none;">
         <div style="font-size:12px;font-weight:600;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">Équipements professionnels</div>
         <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;">
           @php
           $pro = [
-            'has_projector'    => ['Vidéoprojecteur','chalkboard-teacher'],
-            'has_visio'        => ['Visioconférence','video'],
-            'has_whiteboard'   => ['Tableau blanc','edit'],
-            'has_reception'    => ['Salle d\'accueil','concierge-bell'],
-            'has_kitchen_pro'  => ['Cuisine / Cafétéria','coffee'],
-            'has_printing'     => ['Imprimante / Copie','print'],
+            'has_projector'   => ['Vidéoprojecteur',     'chalkboard-teacher'],
+            'has_visio'       => ['Visioconférence',      'video'],
+            'has_whiteboard'  => ['Tableau blanc',        'edit'],
+            'has_reception'   => ["Salle d'accueil",      'concierge-bell'],
+            'has_kitchen_pro' => ['Cuisine / Cafétéria',  'coffee'],
+            'has_printing'    => ['Imprimante / Copie',   'print'],
           ];
           @endphp
           @foreach($pro as $key => $item)
@@ -459,18 +548,17 @@
         </div>
       </div>
 
-      <!-- Événements/fêtes -->
       <div id="amenities-fete" style="margin-bottom:16px;display:none;">
         <div style="font-size:12px;font-weight:600;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">Équipements événementiels</div>
         <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;">
           @php
           $event = [
-            'has_sound_system'  => ['Sono / Musique','music'],
-            'has_lighting'      => ['Éclairage déco','lightbulb'],
-            'has_stage'         => ['Scène / Podium','theater-masks'],
-            'has_dancefloor'    => ['Piste de danse','compact-disc'],
-            'has_catering'      => ['Service traiteur','utensils'],
-            'has_photo_service' => ['Photo / Vidéo','camera'],
+            'has_sound_system'  => ['Sono / Musique',    'music'],
+            'has_lighting'      => ['Éclairage déco',    'lightbulb'],
+            'has_stage'         => ['Scène / Podium',    'theater-masks'],
+            'has_dancefloor'    => ['Piste de danse',    'compact-disc'],
+            'has_catering'      => ['Service traiteur',  'utensils'],
+            'has_photo_service' => ['Photo / Vidéo',     'camera'],
           ];
           @endphp
           @foreach($event as $key => $item)
@@ -483,7 +571,6 @@
         </div>
       </div>
 
-      <!-- Équipements personnalisés -->
       <div>
         <div style="font-size:12px;font-weight:600;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">Équipements supplémentaires</div>
         <div id="custom-amenities-list" style="margin-bottom:10px;"></div>
@@ -491,7 +578,6 @@
           <i class="fas fa-plus"></i> Ajouter un équipement
         </button>
       </div>
-
     </div>
   </div>
 
@@ -506,10 +592,10 @@
         <div class="form-group">
           <label>Statut initial</label>
           <select name="status" class="form-control">
-            <option value="disponible" {{ old('status','disponible')=='disponible'?'selected':'' }}>Disponible</option>
-            <option value="occupé"     {{ old('status')=='occupé'?'selected':'' }}>Occupé</option>
-            <option value="maintenance"{{ old('status')=='maintenance'?'selected':'' }}>En maintenance</option>
-            <option value="suspendu"   {{ old('status')=='suspendu'?'selected':'' }}>Suspendu</option>
+            <option value="disponible"  {{ old('status','disponible')=='disponible' ?'selected':'' }}>Disponible</option>
+            <option value="occupé"      {{ old('status')=='occupé'     ?'selected':'' }}>Occupé</option>
+            <option value="maintenance" {{ old('status')=='maintenance'?'selected':'' }}>En maintenance</option>
+            <option value="suspendu"    {{ old('status')=='suspendu'   ?'selected':'' }}>Suspendu</option>
           </select>
         </div>
         <div class="form-group">
@@ -552,27 +638,21 @@
   color:var(--txt2);background:var(--bg-soft);
 }
 .type-card:hover { border-color:var(--tholad-blue);color:var(--tholad-blue); }
-.type-card.selected {
-  border-color:var(--tholad-blue);background:#EEF2FF;
-  color:var(--tholad-blue);font-weight:600;
-}
+.type-card.selected { border-color:var(--tholad-blue);background:#EEF2FF;color:var(--tholad-blue);font-weight:600; }
 .type-card i { color:inherit; }
 
 .amenity-checkbox {
   display:flex;align-items:center;gap:8px;padding:8px 10px;
-  border:1px solid var(--border);border-radius:8px;cursor:pointer;
-  font-size:13px;transition:all .15s;
+  border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;transition:all .15s;
 }
 .amenity-checkbox:hover { border-color:var(--tholad-blue);background:#F0F4FF; }
 .amenity-checkbox input:checked + i + span,
 .amenity-checkbox input:checked ~ i { color:var(--tholad-blue); }
-.amenity-checkbox input { accent-color:var(--tholad-blue); width:15px;height:15px; }
+.amenity-checkbox input { accent-color:var(--tholad-blue);width:15px;height:15px; }
 .amenity-checkbox i { color:var(--txt3);width:14px;font-size:13px; }
 
 #image-dropzone:hover { border-color:var(--tholad-blue);background:#EEF2FF; }
-.img-preview-item {
-  position:relative;border-radius:8px;overflow:hidden;aspect-ratio:4/3;
-}
+.img-preview-item { position:relative;border-radius:8px;overflow:hidden;aspect-ratio:4/3; }
 .img-preview-item img { width:100%;height:100%;object-fit:cover; }
 .img-preview-item .img-badge {
   position:absolute;top:4px;left:4px;background:var(--tholad-blue);
@@ -614,13 +694,11 @@ function buildCountrySelect(selectEl, defaultCountry = '') {
   selectEl.innerHTML = '<option value="">— Choisir un pays —</option>';
   Object.keys(PAYS_DATA).sort().forEach(pays => {
     const opt = document.createElement('option');
-    opt.value = pays;
-    opt.textContent = pays;
+    opt.value = pays; opt.textContent = pays;
     if (pays === defaultCountry) opt.selected = true;
     selectEl.appendChild(opt);
   });
 }
-
 function buildCitySelect(cityEl, country, defaultCity = '') {
   cityEl.innerHTML = '<option value="">— Choisir une ville —</option>';
   if (country && PAYS_DATA[country]) {
@@ -632,7 +710,6 @@ function buildCitySelect(cityEl, country, defaultCity = '') {
     });
   }
 }
-
 function buildIndicatifSelect(selectEl, defaultCode = '+242') {
   selectEl.innerHTML = '';
   const flags = {"Congo Brazzaville":"🇨🇬","Congo RDC":"🇨🇩","Gabon":"🇬🇦","Cameroun":"🇨🇲","Côte d'Ivoire":"🇨🇮","Sénégal":"🇸🇳","Mali":"🇲🇱","Guinée":"🇬🇳","Tchad":"🇹🇩","Centrafrique":"🇨🇫","Angola":"🇦🇴","France":"🇫🇷","Belgique":"🇧🇪","Togo":"🇹🇬","Bénin":"🇧🇯","Burkina Faso":"🇧🇫","Rwanda":"🇷🇼","Burundi":"🇧🇮","Madagascar":"🇲🇬","Maroc":"🇲🇦"};
@@ -645,9 +722,8 @@ function buildIndicatifSelect(selectEl, defaultCode = '+242') {
   });
 }
 
-// Init property form selects
-const csProp = document.getElementById('country-select-prop');
-const vsProp = document.getElementById('city-select-prop');
+const csProp  = document.getElementById('country-select-prop');
+const vsProp  = document.getElementById('city-select-prop');
 const indProp = document.getElementById('phone-indicatif-prop');
 
 buildCountrySelect(csProp, '{{ old('country','Congo Brazzaville') }}');
@@ -656,19 +732,17 @@ buildIndicatifSelect(indProp, '+242');
 
 csProp.addEventListener('change', function() {
   buildCitySelect(vsProp, this.value);
-  if (PAYS_DATA[this.value]) {
-    indProp.value = PAYS_DATA[this.value].code;
-  }
+  if (PAYS_DATA[this.value]) indProp.value = PAYS_DATA[this.value].code;
 });
 
 // ── Type de bien dynamique ───────────────────────────────────────
-const typeCards = document.querySelectorAll('.type-card');
-const fieldsHab  = document.getElementById('fields-habitation');
-const fieldsBur  = document.getElementById('fields-bureau');
-const fieldsTer  = document.getElementById('fields-terrain');
-const amenBur    = document.getElementById('amenities-bureau');
-const amenFete   = document.getElementById('amenities-fete');
-const amenConf   = document.getElementById('amenities-confort');
+const typeCards    = document.querySelectorAll('.type-card');
+const fieldsHab    = document.getElementById('fields-habitation');
+const fieldsBur    = document.getElementById('fields-bureau');
+const fieldsTer    = document.getElementById('fields-terrain');
+const amenBur      = document.getElementById('amenities-bureau');
+const amenFete     = document.getElementById('amenities-fete');
+const amenConf     = document.getElementById('amenities-confort');
 
 const habitTypes   = ['appartement','villa','studio','maison','chambre'];
 const bureauTypes  = ['bureau','salle_reunion'];
@@ -677,48 +751,35 @@ const terrainTypes = ['terrain','entrepot','commerce'];
 
 function switchType(type) {
   typeCards.forEach(c => c.classList.toggle('selected', c.dataset.type === type));
-
-  // Champs caractéristiques
   fieldsHab.style.display  = habitTypes.includes(type)  ? '' : 'none';
   fieldsBur.style.display  = bureauTypes.includes(type) ? '' : 'none';
   fieldsTer.style.display  = terrainTypes.includes(type)? '' : 'none';
   if (feteTypes.includes(type)) { fieldsHab.style.display=''; fieldsBur.style.display=''; }
-
-  // Équipements contextuels
-  amenBur.style.display  = [...bureauTypes,'salle_fete'].includes(type) ? '' : 'none';
-  amenFete.style.display = feteTypes.includes(type) ? '' : 'none';
-  amenConf.style.display = terrainTypes.includes(type) ? 'none' : '';
+  amenBur.style.display    = [...bureauTypes,'salle_fete'].includes(type) ? '' : 'none';
+  amenFete.style.display   = feteTypes.includes(type) ? '' : 'none';
+  amenConf.style.display   = terrainTypes.includes(type) ? 'none' : '';
 }
-
 typeCards.forEach(card => {
-  card.addEventListener('click', () => {
-    card.querySelector('input').checked = true;
-    switchType(card.dataset.type);
-  });
+  card.addEventListener('click', () => { card.querySelector('input').checked = true; switchType(card.dataset.type); });
 });
-
-// Init with current type
 switchType('{{ old('type','appartement') }}');
 
 // ── Prévisualisation images ──────────────────────────────────────
-const imageInput = document.getElementById('images-input');
+const imageInput  = document.getElementById('images-input');
 const previewGrid = document.getElementById('image-preview-grid');
-const countMsg = document.getElementById('image-count-msg');
+const countMsg    = document.getElementById('image-count-msg');
 let selectedFiles = [];
 
 imageInput.addEventListener('change', function() {
-  const newFiles = Array.from(this.files);
-  selectedFiles = [...selectedFiles, ...newFiles].slice(0, 20);
+  selectedFiles = [...selectedFiles, ...Array.from(this.files)].slice(0, 20);
   renderPreviews();
 });
 
-// Drag & drop
 const dropzone = document.getElementById('image-dropzone');
 dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.style.borderColor='var(--tholad-blue)'; });
 dropzone.addEventListener('dragleave', () => { dropzone.style.borderColor='var(--border)'; });
 dropzone.addEventListener('drop', e => {
-  e.preventDefault();
-  dropzone.style.borderColor='var(--border)';
+  e.preventDefault(); dropzone.style.borderColor='var(--border)';
   const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
   selectedFiles = [...selectedFiles, ...files].slice(0, 20);
   renderPreviews();
@@ -731,10 +792,7 @@ function renderPreviews() {
     reader.onload = e => {
       const div = document.createElement('div');
       div.className = 'img-preview-item';
-      div.innerHTML = `
-        <img src="${e.target.result}" alt="">
-        ${idx===0 ? '<span class="img-badge">Principale</span>' : ''}
-        <button type="button" class="img-remove" onclick="removeImage(${idx})">✕</button>`;
+      div.innerHTML = `<img src="${e.target.result}" alt="">${idx===0?'<span class="img-badge">Principale</span>':''}<button type="button" class="img-remove" onclick="removeImage(${idx})">✕</button>`;
       previewGrid.appendChild(div);
     };
     reader.readAsDataURL(file);
@@ -743,11 +801,7 @@ function renderPreviews() {
   countMsg.textContent = c > 0 ? `${c} photo${c>1?'s':''} sélectionnée${c>1?'s':''}${c<4?' — Recommandé : au moins 4':''}` : '';
   countMsg.style.color = c < 4 && c > 0 ? 'var(--coral)' : 'var(--txt3)';
 }
-
-function removeImage(idx) {
-  selectedFiles.splice(idx, 1);
-  renderPreviews();
-}
+function removeImage(idx) { selectedFiles.splice(idx, 1); renderPreviews(); }
 
 // ── Équipements personnalisés ────────────────────────────────────
 let customCount = 0;
@@ -755,62 +809,88 @@ function addCustomAmenity() {
   customCount++;
   const div = document.createElement('div');
   div.style.cssText = 'display:flex;gap:8px;margin-bottom:8px;align-items:center;';
-  div.innerHTML = `
-    <input type="text" name="custom_amenities[]" class="form-control" placeholder="Ex: Jacuzzi, Roof top..." style="flex:1;">
-    <button type="button" onclick="this.parentNode.remove()" class="btn btn-outline btn-sm" style="padding:6px 10px;color:var(--coral)">
-      <i class="fas fa-times"></i>
-    </button>`;
+  div.innerHTML = `<input type="text" name="custom_amenities[]" class="form-control" placeholder="Ex: Jacuzzi, Roof top..." style="flex:1;"><button type="button" onclick="this.parentNode.remove()" class="btn btn-outline btn-sm" style="padding:6px 10px;color:var(--coral)"><i class="fas fa-times"></i></button>`;
   document.getElementById('custom-amenities-list').appendChild(div);
 }
 
-// ── Gestion période à l'heure ────────────────────────────────────
+// ── Tarif principal (heure) ──────────────────────────────────────
 const pricePeriodSelect   = document.getElementById('price-period-select');
 const heuresField         = document.getElementById('heures-field');
 const durationHoursSelect = document.getElementById('duration-hours-select');
 const tarifApercuText     = document.getElementById('tarif-apercu-text');
-const priceInput          = document.querySelector('input[name="price"]');
+const mainPriceInput      = document.getElementById('main-price-input');
 
 function updateTarifApercu() {
-  const prix   = parseFloat(priceInput?.value) || 0;
+  const prix   = parseFloat(mainPriceInput?.value) || 0;
   const heures = parseInt(durationHoursSelect?.value) || 0;
   const devise = document.querySelector('select[name="currency"]')?.value || 'XAF';
-
   if (prix > 0 && heures > 0) {
-    const formatted = new Intl.NumberFormat('fr-FR').format(prix);
-    tarifApercuText.textContent = `${formatted} ${devise} / ${heures}h`;
-    tarifApercuText.style.color = 'var(--navy)';
+    tarifApercuText.textContent    = `${new Intl.NumberFormat('fr-FR').format(prix)} ${devise} / ${heures}h`;
+    tarifApercuText.style.color    = 'var(--navy)';
     tarifApercuText.style.fontWeight = '600';
   } else {
-    tarifApercuText.textContent = 'Saisissez prix + heures';
-    tarifApercuText.style.color = 'var(--txt3)';
+    tarifApercuText.textContent    = 'Saisissez prix + heures';
+    tarifApercuText.style.color    = 'var(--txt3)';
     tarifApercuText.style.fontWeight = '400';
   }
 }
 
-// Afficher/masquer le champ heures selon la période choisie
 pricePeriodSelect?.addEventListener('change', function() {
-  if (this.value === 'heure') {
-    heuresField.style.display = '';
-    durationHoursSelect.required = true;
-  } else {
-    heuresField.style.display = 'none';
-    durationHoursSelect.required = false;
-    durationHoursSelect.value = '';
-  }
+  heuresField.style.display    = this.value === 'heure' ? '' : 'none';
+  durationHoursSelect.required = this.value === 'heure';
+  if (this.value !== 'heure') durationHoursSelect.value = '';
   updateTarifApercu();
 });
-
-// Mettre à jour l'aperçu en temps réel
 durationHoursSelect?.addEventListener('change', updateTarifApercu);
-priceInput?.addEventListener('input', updateTarifApercu);
+mainPriceInput?.addEventListener('input', updateTarifApercu);
 document.querySelector('select[name="currency"]')?.addEventListener('change', updateTarifApercu);
+if (pricePeriodSelect?.value === 'heure') { heuresField.style.display=''; durationHoursSelect.required=true; updateTarifApercu(); }
 
-// Init au chargement si old value = heure
-if (pricePeriodSelect?.value === 'heure') {
-  heuresField.style.display = '';
-  durationHoursSelect.required = true;
-  updateTarifApercu();
+// ── Grille tarifaire multi-périodes ─────────────────────────────
+const toggleBtn      = document.getElementById('toggle-pricing-grid');
+const gridWrapper    = document.getElementById('pricing-grid-wrapper');
+const pricingSummary = document.getElementById('pricing-summary');
+const summaryList    = document.getElementById('pricing-summary-list');
+
+const periodSuffixes = { heure:'/h', jour:'/j', nuit:'/nuit', semaine:'/sem', mois:'/mois', an:'/an' };
+
+toggleBtn?.addEventListener('click', function() {
+  const open = gridWrapper.style.display !== 'none';
+  gridWrapper.style.display = open ? 'none' : '';
+  this.innerHTML = `<i class="fas fa-chevron-${open?'down':'up'}"></i> ${open?'Afficher':'Masquer'}`;
+});
+
+function updatePricingUI(input) {
+  const period = input.dataset.period;
+  const price  = parseInt(input.value) || 0;
+  const card   = document.querySelector(`.pricing-period-card[data-period="${period}"]`);
+  const badge  = document.querySelector(`.pricing-badge[data-period="${period}"]`);
+
+  if (price > 0) {
+    card.style.borderColor = 'var(--tholad-blue)';
+    card.style.boxShadow   = '0 0 0 3px rgba(0,82,204,.08)';
+    badge.style.display    = 'block';
+  } else {
+    card.style.borderColor = 'var(--border)';
+    card.style.boxShadow   = 'none';
+    badge.style.display    = 'none';
+  }
+
+  // Reconstruire récapitulatif
+  const devise = document.querySelector('select[name="currency"]')?.value || 'XAF';
+  const items  = [];
+  document.querySelectorAll('.pricing-price-input').forEach(el => {
+    const p = parseInt(el.value) || 0;
+    if (p > 0) items.push(`<span style="padding:5px 12px;background:#fff;border:1px solid var(--tholad-blue);border-radius:20px;font-size:12px;color:var(--navy);font-weight:600;">${new Intl.NumberFormat('fr-FR').format(p)} ${devise}${periodSuffixes[el.dataset.period]||''}</span>`);
+  });
+  pricingSummary.style.display = items.length ? '' : 'none';
+  summaryList.innerHTML = items.join('');
 }
+
+document.querySelectorAll('.pricing-price-input').forEach(el => {
+  el.addEventListener('input', () => updatePricingUI(el));
+  if (parseInt(el.value) > 0) updatePricingUI(el);
+});
 </script>
 
 @endsection
