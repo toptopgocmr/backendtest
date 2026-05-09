@@ -74,8 +74,9 @@ class PropertyController extends Controller
 
     public function create()
     {
-        $owners = User::where('role', 'proprietaire')
-                      ->orWhere('role', 'admin')
+        // FIX : les propriétaires sont créés avec role='owner' dans OwnerController
+        // 'proprietaire' était incorrect et rendait le dropdown vide
+        $owners = User::where('role', 'owner')
                       ->orderBy('name')
                       ->get();
 
