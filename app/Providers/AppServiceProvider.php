@@ -2,28 +2,25 @@
 
 namespace App\Providers;
 
-use App\Models\Booking;
-use App\Policies\BookingPolicy;
-use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
+use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\URL;
 
 class AppServiceProvider extends ServiceProvider
 {
-    protected $policies = [
-        Booking::class => BookingPolicy::class,
-    ];
+    /**
+     * Register any application services.
+     */
+    public function register(): void
+    {
+        //
+    }
 
-    public function register(): void {}
-
+    /**
+     * Bootstrap any application services.
+     */
     public function boot(): void
     {
-        $this->registerPolicies();
+        // Fix compatibilité MySQL anciennes versions (utf8mb4 index limit)
         Schema::defaultStringLength(191);
-
-        // ✅ Forcer HTTPS en production (Railway)
-        if (env('APP_ENV') === 'production') {
-            URL::forceScheme('https');
-        }
     }
 }

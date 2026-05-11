@@ -20,7 +20,6 @@ class StockItem extends Model
         'is_active'        => 'boolean',
     ];
 
-    // ── Relations ─────────────────────────────────────────────────
     public function category()
     {
         return $this->belongsTo(StockCategory::class);
@@ -41,7 +40,6 @@ class StockItem extends Model
         return $this->hasMany(StockAlert::class);
     }
 
-    // ── Helpers ───────────────────────────────────────────────────
     public function isLow(): bool
     {
         return $this->quantity_current <= $this->quantity_minimum;
@@ -65,9 +63,6 @@ class StockItem extends Model
         return min(100, (int)(($this->quantity_current / $this->quantity_optimal) * 100));
     }
 
-    /**
-     * Ajouter du stock (entrée)
-     */
     public function addStock(float $qty, ?int $agentId = null, string $reason = '', string $ref = ''): StockMovement
     {
         $before = $this->quantity_current;
@@ -86,9 +81,6 @@ class StockItem extends Model
         ]);
     }
 
-    /**
-     * Retirer du stock (sortie)
-     */
     public function removeStock(float $qty, ?int $agentId = null, ?int $propertyId = null, string $reason = ''): StockMovement
     {
         $before = $this->quantity_current;
@@ -106,7 +98,6 @@ class StockItem extends Model
             'reason'          => $reason,
         ]);
 
-        // Créer une alerte si nécessaire
         $this->checkAndCreateAlert();
 
         return $movement;
@@ -127,8 +118,7 @@ class StockItem extends Model
         }
     }
 
-    // ── Scopes ────────────────────────────────────────────────────
-    public function scopeActive($q)   { return $q->where('is_active', true); }
-    public function scopeLow($q)      { return $q->whereRaw('quantity_current <= quantity_minimum'); }
+    public function scopeActive($q) { return $q->where('is_active', true); }
+    public function scopeLow($q)    { return $q->whereRaw('quantity_current <= quantity_minimum'); }
     public function scopeCritical($q) { return $q->whereRaw('quantity_current <= (quantity_minimum * 0.5)'); }
 }
