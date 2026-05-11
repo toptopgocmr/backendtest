@@ -37,6 +37,12 @@ Route::get('/test-storage', function () {
     ]);
 });
 
+// PRIVACY POLICY — requis par Google Play (policy violation fix)
+// URL déclarée dans Play Console > App content > Privacy policy
+Route::get('/privacy', function () {
+    return view('privacy');
+});
+
 // ⚠️  Route::get('/admin', ...) SUPPRIMÉE volontairement.
 //     Le panel admin est géré intégralement par routes/admin.php
 //     (middleware auth:admin). La route JSON ci-dessous court-circuitait
