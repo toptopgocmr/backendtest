@@ -48,6 +48,25 @@ Route::get('/privacy', function () {
 //     (middleware auth:admin). La route JSON ci-dessous court-circuitait
 //     le routage Blade et empêchait l'accès au panneau.
 
+
+// STORAGE PROXY — sert les fichiers uploadés sans lien symbolique
+// Railway ne supporte pas php artisan storage:link (filesystem éphémère)
+// Cette route lit le fichier depuis storage/app/public/ et le retourne
+Route::get('/storage/{path}', function (string $path) {
+    $fullPath = storage_path('app/public/' . $path);
+
+    if (!file_exists($fullPath)) {
+        abort(404, 'Fichier introuvable');
+    }
+
+    $mimeType = mime_content_type($fullPath) ?: 'application/octet-stream';
+
+    return response()->file($fullPath, [
+        'Content-Type'  => $mimeType,
+        'Cache-Control' => 'public, max-age=86400',
+    ]);
+})->where('path', '.*');
+
 // FALLBACK 404
 Route::fallback(function () {
     return response()->json([

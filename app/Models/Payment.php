@@ -94,7 +94,9 @@ class Payment extends Model
             return $this->proof_image;
         }
         // Storage local
-        return asset('storage/' . $this->proof_image);
+        // FIX Railway : utiliser la route proxy /storage/{path}
+        // au lieu du lien symbolique (non supporté sur Railway)
+        return url('storage/' . $this->proof_image);
     }
 
     /** Alias proof_url utilisé dans la vue Blade admin */
