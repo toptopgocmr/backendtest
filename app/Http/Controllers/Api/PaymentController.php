@@ -11,6 +11,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use App\Services\CloudinaryService;
+use App\Services\CloudinaryService;
 
 class PaymentController extends Controller
 {
@@ -129,20 +131,27 @@ class PaymentController extends Controller
 
         DB::beginTransaction();
         try {
-            $proofPath = null;
+            $proofPath  = null;
+            $cloudinary = new CloudinaryService();
 
-            // Mobile : multipart file nommé 'proof'
+            // Mobile : multipart file
             if ($request->hasFile('proof')) {
-                $proofPath = $request->file('proof')
-                    ->store("payments/{$booking->id}", 'public');
+                // FIX Railway : Cloudinary au lieu du storage local ephemere
+                $proofPath = $cloudinary->upload(
+                    $request->file('proof'),
+                    'immostay/payments/' . $booking->id
+                );
             }
-            // Web : base64 JSON
+            // Web : base64 -> temp file -> Cloudinary
             elseif ($request->filled('proof_base64')) {
-                $imageData   = base64_decode($request->proof_base64);
-                $filename    = 'preuve_' . time() . '.jpg';
-                $storagePath = "payments/{$booking->id}/{$filename}";
-                Storage::disk('public')->put($storagePath, $imageData);
-                $proofPath = $storagePath;
+                $imageData = base64_decode($request->proof_base64);
+                $tmpPath   = tempnam(sys_get_temp_dir(), 'proof_') . '.jpg';
+                file_put_contents($tmpPath, $imageData);
+                $tmpFile   = new \Illuminate\Http\UploadedFile(
+                    $tmpPath, 'preuve.jpg', 'image/jpeg', null, true
+                );
+                $proofPath = $cloudinary->upload($tmpFile, 'immostay/payments/' . $booking->id);
+                @unlink($tmpPath);
             }
 
             // Colonnes réelles du modèle Payment : method, phone, provider_ref
@@ -218,11 +227,16 @@ class PaymentController extends Controller
             'proof_base64' => 'nullable|string',
         ]);
 
-        $proofPath = $payment->proof_image;
-        $proofFile = $request->file('proof');
+        $proofPath  = $payment->proof_image;
+        $proofFile  = $request->file('proof');
+        $cloudinary = new CloudinaryService();
 
         if ($proofFile) {
-            $proofPath = $proofFile->store("payments/{$payment->booking_id}", 'public');
+            // FIX Railway : Cloudinary
+            $proofPath = $cloudinary->upload(
+                $proofFile,
+                'immostay/payments/' . $payment->booking_id
+            );
         } elseif ($request->filled('proof_base64')) {
             $imageData   = base64_decode($request->proof_base64);
             $filename    = 'preuve_' . time() . '.jpg';
