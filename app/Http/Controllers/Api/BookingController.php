@@ -57,8 +57,8 @@ class BookingController extends Controller
         $checkIn  = Carbon::parse($request->check_in);
         $checkOut = Carbon::parse($request->check_out);
 
-        $yesterday = Carbon::yesterday()->startOfDay();
-        if ($checkIn->lt($yesterday)) {
+        // FIX : today() au lieu de yesterday() — évite de rejeter les réservations du jour même
+        if ($checkIn->lt(Carbon::today()->startOfDay())) {
             return response()->json([
                 'success' => false,
                 'message' => "La date d'arrivée ne peut pas être dans le passé.",
@@ -75,19 +75,73 @@ class BookingController extends Controller
             ], 422);
         }
 
-        $conflict = PropertyAvailability::where('property_id', $request->property_id)
+        // ── Vérification 1 : jours bloqués manuellement (PropertyAvailability) ─
+        $unavailableConflict = PropertyAvailability::where('property_id', $request->property_id)
             ->whereBetween('unavailable_date', [
                 $checkIn->toDateString(),
                 $checkOut->clone()->subDay()->toDateString(),
             ])->exists();
 
-        if ($conflict) {
+        if ($unavailableConflict) {
             return response()->json([
                 'success' => false,
-                'message' => 'Ces dates ne sont pas disponibles.',
+                'message' => 'Ces dates ne sont pas disponibles (bien bloqué par le propriétaire).',
             ], 409);
         }
 
+        // ── Vérification 2 : chevauchement avec réservations existantes ────────
+        // Statuts exclus : 'annulé' uniquement — en_attente et confirmé bloquent le créneau.
+        //
+        // Logique d'overlap :
+        //   Une réservation B chevauche [newCheckIn, newCheckOut[ si :
+        //     B.check_in  < newCheckOut   ET   B.check_out > newCheckIn
+        //
+        // Pour le mode 'heure' : comparaison datetime précise (à la minute).
+        // Pour les autres modes : comparaison date seule (jour).
+
+        $overlappingBooking = null;
+
+        if ($pricePeriod === 'heure') {
+            // Comparaison datetime complète — même jour, même créneau horaire
+            $overlappingBooking = Booking::where('property_id', $request->property_id)
+                ->whereNotIn('status', ['annulé'])
+                ->where('check_in',  '<', $checkOut)
+                ->where('check_out', '>', $checkIn)
+                ->first();
+        } else {
+            // Comparaison par date (jour) pour nuit / jour / semaine / mois / an
+            $overlappingBooking = Booking::where('property_id', $request->property_id)
+                ->whereNotIn('status', ['annulé'])
+                ->whereDate('check_in',  '<', $checkOut->toDateString())
+                ->whereDate('check_out', '>', $checkIn->toDateString())
+                ->first();
+        }
+
+        if ($overlappingBooking) {
+            // Message détaillé selon le mode de tarification
+            if ($pricePeriod === 'heure') {
+                $ciLabel = $overlappingBooking->check_in->format('d/m/Y \à H\hi');
+                $coLabel = $overlappingBooking->check_out->format('d/m/Y \à H\hi');
+                $message = "Ce bien est déjà réservé du {$ciLabel} au {$coLabel}. "
+                         . "Veuillez choisir un autre créneau horaire.";
+            } else {
+                $ciLabel = $overlappingBooking->check_in->format('d/m/Y');
+                $coLabel = $overlappingBooking->check_out->format('d/m/Y');
+                $message = "Ce bien est déjà réservé du {$ciLabel} au {$coLabel}. "
+                         . "Veuillez choisir d'autres dates.";
+            }
+
+            return response()->json([
+                'success'  => false,
+                'message'  => $message,
+                'conflict' => [
+                    'check_in'  => $overlappingBooking->check_in->toIso8601String(),
+                    'check_out' => $overlappingBooking->check_out->toIso8601String(),
+                ],
+            ], 409);
+        }
+
+        // ── Calcul du montant ──────────────────────────────────────────────────
         $price = (float) ($property->price ?? 0);
         if ($price <= 0) {
             return response()->json([
@@ -107,8 +161,8 @@ class BookingController extends Controller
         $booking = Booking::create([
             'user_id'                 => $request->user()->id,
             'property_id'             => $request->property_id,
-            'check_in'                => $checkIn,   // ← Carbon datetime complet
-            'check_out'               => $checkOut,  // ← Carbon datetime complet
+            'check_in'                => $checkIn,
+            'check_out'               => $checkOut,
             'nights'                  => $duration,
             'guests'                  => $request->guests,
             'base_amount'             => $baseAmount,
@@ -220,8 +274,8 @@ class BookingController extends Controller
             'id'                      => $b->id,
             'reference'               => $b->reference,
             'ref'                     => $b->reference,
-            'check_in'                => $b->check_in?->format('Y-m-d\TH:i:s'),   // ← FIX : datetime complet
-            'check_out'               => $b->check_out?->format('Y-m-d\TH:i:s'),  // ← FIX : datetime complet
+            'check_in'                => $b->check_in?->format('Y-m-d\TH:i:s'),
+            'check_out'               => $b->check_out?->format('Y-m-d\TH:i:s'),
             'nights'                  => $b->nights,
             'duration_unit'           => $pricePeriod,
             'guests'                  => $b->guests,
