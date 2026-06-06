@@ -14,7 +14,6 @@ use Illuminate\Support\Facades\Storage;
 
 class PaymentController extends Controller
 {
-    // ── Numéros lus depuis .env ───────────────────────────────────────────────
     public static function paymentNumbers(): array
     {
         return [
@@ -29,7 +28,6 @@ class PaymentController extends Controller
         ];
     }
 
-    // ── Initier un paiement (crée l'entrée Payment en statut en_attente) ─────
     public function initiate(Request $request): JsonResponse
     {
         $request->validate([
@@ -95,7 +93,6 @@ class PaymentController extends Controller
         ]);
     }
 
-    // ── Instructions de paiement pour une réservation ────────────────────────
     public function instructions(Booking $booking): JsonResponse
     {
         if ((int) $booking->user_id !== (int) auth()->id()) {
@@ -107,21 +104,10 @@ class PaymentController extends Controller
             'amount'          => $booking->total_amount,
             'currency'        => 'XAF',
             'payment_numbers' => self::paymentNumbers(),
-            'instructions'    => [
-                "1. Envoyez {$booking->total_amount} XAF à l'un des numéros ci-dessus.",
-                "2. Notez l'ID de transaction affiché sur votre téléphone.",
-                "3. Prenez une capture d'écran de la confirmation.",
-                "4. Soumettez l'ID et la capture dans l'application.",
-                "⏳ Validation sous 5 à 30 minutes.",
-            ],
         ]);
     }
 
-    // ── Client soumet la preuve de paiement ──────────────────────────────────
-    // FIX : noms de colonnes corrigés pour correspondre au modèle Payment
-    //   payment_method → method
-    //   phone_number   → phone
-    //   transaction_id → provider_ref
+    // ── Soumission preuve — Flutter envoie : method, provider_ref, phone, proof (multipart) ou proof_base64
     public function store(SubmitPaymentRequest $request, Booking $booking): JsonResponse
     {
         if ((int) $booking->user_id !== (int) auth()->id()) {
@@ -144,20 +130,30 @@ class PaymentController extends Controller
         DB::beginTransaction();
         try {
             $proofPath = null;
-            if ($request->hasFile('proof_image')) {
-                $proofPath = $request->file('proof_image')
+
+            // Mobile : multipart file nommé 'proof'
+            if ($request->hasFile('proof')) {
+                $proofPath = $request->file('proof')
                     ->store("payments/{$booking->id}", 'public');
             }
+            // Web : base64 JSON
+            elseif ($request->filled('proof_base64')) {
+                $imageData   = base64_decode($request->proof_base64);
+                $filename    = 'preuve_' . time() . '.jpg';
+                $storagePath = "payments/{$booking->id}/{$filename}";
+                Storage::disk('public')->put($storagePath, $imageData);
+                $proofPath = $storagePath;
+            }
 
+            // Colonnes réelles du modèle Payment : method, phone, provider_ref
             $payment = Payment::create([
                 'booking_id'  => $booking->id,
                 'user_id'     => auth()->id(),
                 'amount'      => $booking->total_amount,
                 'currency'    => 'XAF',
-                // FIX : noms de colonnes réels du modèle Payment
-                'method'      => $request->payment_method,   // était payment_method
-                'phone'       => $request->phone_number,     // était phone_number
-                'provider_ref'=> $request->transaction_id,   // était transaction_id
+                'method'      => $request->method,        // Flutter envoie 'method'
+                'phone'       => $request->phone,         // Flutter envoie 'phone'
+                'provider_ref'=> $request->provider_ref,  // Flutter envoie 'provider_ref'
                 'proof_image' => $proofPath,
                 'status'      => Payment::STATUS_EN_ATTENTE_CONFIRMATION,
             ]);
@@ -171,15 +167,15 @@ class PaymentController extends Controller
                 'message' => 'Preuve de paiement soumise. Validation sous 5 à 30 minutes.',
                 'payment' => new PaymentResource($payment->load('booking')),
                 'receipt' => [
-                    'type'           => 'provisoire',
-                    'payment_id'     => $payment->id,
-                    'booking_ref'    => $booking->reference ?? "BK-{$booking->id}",
-                    'amount'         => $payment->amount,
-                    'currency'       => $payment->currency,
-                    'transaction_id' => $payment->provider_ref,
-                    'submitted_at'   => $payment->created_at->format('d/m/Y H:i'),
-                    'status'         => $payment->status_label,
-                    'message'        => "Votre paiement est en cours de vérification. Confirmation d'ici 30 minutes.",
+                    'type'        => 'provisoire',
+                    'payment_ref' => $payment->reference ?? "PAY-{$payment->id}",
+                    'booking_ref' => $booking->reference  ?? "BK-{$booking->id}",
+                    'amount'      => $payment->amount,
+                    'currency'    => $payment->currency,
+                    'provider_ref'=> $payment->provider_ref,
+                    'submitted_at'=> $payment->created_at->toIso8601String(),
+                    'status'      => $payment->status_label ?? 'en_attente_confirmation',
+                    'message'     => "Votre paiement est en cours de vérification. Confirmation d'ici 30 minutes.",
                 ],
             ], 201);
 
@@ -193,7 +189,6 @@ class PaymentController extends Controller
         }
     }
 
-    // ── Soumettre/mettre à jour une preuve via référence paiement ─────────────
     public function confirmManual(Request $request, string $paymentRef): JsonResponse
     {
         $payment = Payment::where('reference', $paymentRef)->first();
@@ -217,41 +212,33 @@ class PaymentController extends Controller
         }
 
         $request->validate([
-            'provider_ref'   => 'required_without:transaction_id|nullable|string|max:100',
-            'transaction_id' => 'required_without:provider_ref|nullable|string|max:100',
-            'phone'          => 'required_without:phone_number|nullable|string|max:25',
-            'phone_number'   => 'required_without:phone|nullable|string|max:25',
-            'proof'          => 'nullable|image|max:5120',
-            'proof_image'    => 'nullable|image|max:5120',
-            'proof_base64'   => 'nullable|string',
+            'provider_ref' => 'nullable|string|max:100',
+            'phone'        => 'nullable|string|max:25',
+            'proof'        => 'nullable|image|max:5120',
+            'proof_base64' => 'nullable|string',
         ]);
 
-        $transactionId = $request->provider_ref ?? $request->transaction_id;
-        $phoneNumber   = $request->phone        ?? $request->phone_number;
-
         $proofPath = $payment->proof_image;
-        $proofFile = $request->file('proof') ?? $request->file('proof_image');
+        $proofFile = $request->file('proof');
 
         if ($proofFile) {
             $proofPath = $proofFile->store("payments/{$payment->booking_id}", 'public');
         } elseif ($request->filled('proof_base64')) {
-            $imageData = base64_decode($request->proof_base64);
-            $filename  = 'preuve_' . time() . '.jpg';
+            $imageData   = base64_decode($request->proof_base64);
+            $filename    = 'preuve_' . time() . '.jpg';
             $storagePath = "payments/{$payment->booking_id}/{$filename}";
             Storage::disk('public')->put($storagePath, $imageData);
-            $proofPath = $storagePath;
+            $proofPath   = $storagePath;
         }
 
         $payment->update([
-            'provider_ref' => $transactionId,
-            'phone'        => $phoneNumber,
+            'provider_ref' => $request->provider_ref ?? $payment->provider_ref,
+            'phone'        => $request->phone         ?? $payment->phone,
             'proof_image'  => $proofPath,
             'status'       => Payment::STATUS_EN_ATTENTE_CONFIRMATION,
         ]);
 
         $payment->booking?->update(['payment_status' => 'en_attente_confirmation']);
-
-        $booking = $payment->booking;
 
         return response()->json([
             'success' => true,
@@ -260,10 +247,10 @@ class PaymentController extends Controller
             'receipt' => [
                 'type'         => 'provisoire',
                 'payment_ref'  => $payment->reference ?? "PAY-{$payment->id}",
-                'booking_ref'  => $booking?->reference ?? "BK-{$payment->booking_id}",
+                'booking_ref'  => $payment->booking?->reference ?? "BK-{$payment->booking_id}",
                 'amount'       => $payment->amount,
                 'currency'     => $payment->currency ?? 'XAF',
-                'provider_ref' => $transactionId,
+                'provider_ref' => $payment->provider_ref,
                 'submitted_at' => now()->toIso8601String(),
                 'status'       => 'en_attente_confirmation',
                 'message'      => "Votre paiement est en cours de vérification.",
@@ -271,7 +258,6 @@ class PaymentController extends Controller
         ]);
     }
 
-    // ── Statut d'un paiement (polling Flutter) ────────────────────────────────
     public function status(string $paymentRef): JsonResponse
     {
         $payment = Payment::where('reference', $paymentRef)->first();
@@ -296,7 +282,6 @@ class PaymentController extends Controller
         ]);
     }
 
-    // ── Détail d'un paiement + reçu final si validé ───────────────────────────
     public function show(string $paymentRef): JsonResponse
     {
         $payment = Payment::where('reference', $paymentRef)->first();
@@ -313,30 +298,25 @@ class PaymentController extends Controller
         }
 
         $payment->load('booking');
-
-        $response = [
-            'success' => true,
-            'payment' => new PaymentResource($payment),
-        ];
+        $response = ['success' => true, 'payment' => new PaymentResource($payment)];
 
         if ($payment->status === Payment::STATUS_SUCCES) {
             $response['receipt'] = [
-                'type'           => 'final',
-                'payment_id'     => $payment->id,
-                'booking_ref'    => $payment->booking->reference ?? "BK-{$payment->booking_id}",
-                'amount'         => $payment->amount,
-                'currency'       => $payment->currency,
-                'transaction_id' => $payment->provider_ref,
-                'verified_at'    => $payment->verified_at?->format('d/m/Y H:i'),
-                'status'         => 'Paiement confirmé ✅',
-                'message'        => 'Votre paiement a été validé. Votre réservation est confirmée !',
+                'type'         => 'final',
+                'payment_id'   => $payment->id,
+                'booking_ref'  => $payment->booking->reference ?? "BK-{$payment->booking_id}",
+                'amount'       => $payment->amount,
+                'currency'     => $payment->currency,
+                'provider_ref' => $payment->provider_ref,
+                'verified_at'  => $payment->verified_at?->format('d/m/Y H:i'),
+                'status'       => 'Paiement confirmé ✅',
+                'message'      => 'Votre paiement a été validé. Votre réservation est confirmée !',
             ];
         }
 
         return response()->json($response);
     }
 
-    // ── Historique paiements de l'utilisateur connecté ───────────────────────
     public function myPayments(Request $request): JsonResponse
     {
         $payments = Payment::where('user_id', auth()->id())
