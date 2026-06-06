@@ -166,26 +166,26 @@ class BookingController extends Controller
             foreach ($bookings as $b) {
                 $durationUnit = $this->durationUnitLabel(
                     $b->property?->price_period ?? 'nuit',
-                    $b->nights
+                    (int)($b->nights ?? 1)
                 );
 
                 fputcsv($handle, [
                     $b->reference,
-                    $b->user->name    ?? '—',
-                    $b->user->phone   ?? '—',
-                    $b->property->title ?? '—',
-                    $b->property->city  ?? '—',
-                    $b->check_in?->format('d/m/Y'),
-                    $b->check_out?->format('d/m/Y'),
+                    $b->user?->name    ?? '—',
+                    $b->user?->phone   ?? '—',
+                    $b->property?->title ?? '—',
+                    $b->property?->city  ?? '—',
+                    $b->check_in?->format('d/m/Y') ?? '—',
+                    $b->check_out?->format('d/m/Y') ?? '—',
                     $b->nights,
                     $durationUnit,
                     $b->guests,
-                    number_format($b->base_amount,         0, ',', ' '),
-                    number_format($b->fees_amount,         0, ',', ' '),
-                    number_format($b->total_amount,        0, ',', ' '),
-                    number_format($b->commission_rate,     2, ',', ' ') . ' %', // ✅
-                    number_format($b->commission_amount,   0, ',', ' '),        // ✅
-                    number_format($b->owner_amount,        0, ',', ' '),        // ✅
+                    number_format((float)($b->base_amount  ?? 0), 0, ',', ' '),
+                    number_format((float)($b->fees_amount  ?? 0), 0, ',', ' '),
+                    number_format((float)($b->total_amount ?? 0), 0, ',', ' '),
+                    number_format((float)($b->commission_rate ?? 0), 2, ',', ' ') . ' %',
+                    number_format((float)($b->owner_commission_amount ?? $b->commission_amount ?? 0), 0, ',', ' '),
+                    number_format((float)($b->owner_amount ?? 0), 0, ',', ' '),
                     $b->status,
                     $b->payment?->status ?? 'non_payé',
                     $b->created_at?->format('d/m/Y H:i'),
