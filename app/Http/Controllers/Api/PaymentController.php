@@ -12,7 +12,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use App\Services\CloudinaryService;
-use App\Services\CloudinaryService;
 
 class PaymentController extends Controller
 {
@@ -238,11 +237,14 @@ class PaymentController extends Controller
                 'immostay/payments/' . $payment->booking_id
             );
         } elseif ($request->filled('proof_base64')) {
-            $imageData   = base64_decode($request->proof_base64);
-            $filename    = 'preuve_' . time() . '.jpg';
-            $storagePath = "payments/{$payment->booking_id}/{$filename}";
-            Storage::disk('public')->put($storagePath, $imageData);
-            $proofPath   = $storagePath;
+            $imageData = base64_decode($request->proof_base64);
+            $tmpPath   = tempnam(sys_get_temp_dir(), 'proof_') . '.jpg';
+            file_put_contents($tmpPath, $imageData);
+            $tmpFile   = new \Illuminate\Http\UploadedFile(
+                $tmpPath, 'preuve.jpg', 'image/jpeg', null, true
+            );
+            $proofPath = $cloudinary->upload($tmpFile, 'immostay/payments/' . $payment->booking_id);
+            @unlink($tmpPath);
         }
 
         $payment->update([
