@@ -118,6 +118,10 @@ class PaymentController extends Controller
     }
 
     // ── Client soumet la preuve de paiement ──────────────────────────────────
+    // FIX : noms de colonnes corrigés pour correspondre au modèle Payment
+    //   payment_method → method
+    //   phone_number   → phone
+    //   transaction_id → provider_ref
     public function store(SubmitPaymentRequest $request, Booking $booking): JsonResponse
     {
         if ((int) $booking->user_id !== (int) auth()->id()) {
@@ -146,15 +150,16 @@ class PaymentController extends Controller
             }
 
             $payment = Payment::create([
-                'booking_id'     => $booking->id,
-                'user_id'        => auth()->id(),
-                'amount'         => $booking->total_amount,
-                'currency'       => 'XAF',
-                'payment_method' => $request->payment_method,
-                'phone_number'   => $request->phone_number,
-                'transaction_id' => $request->transaction_id,
-                'proof_image'    => $proofPath,
-                'status'         => Payment::STATUS_EN_ATTENTE_CONFIRMATION,
+                'booking_id'  => $booking->id,
+                'user_id'     => auth()->id(),
+                'amount'      => $booking->total_amount,
+                'currency'    => 'XAF',
+                // FIX : noms de colonnes réels du modèle Payment
+                'method'      => $request->payment_method,   // était payment_method
+                'phone'       => $request->phone_number,     // était phone_number
+                'provider_ref'=> $request->transaction_id,   // était transaction_id
+                'proof_image' => $proofPath,
+                'status'      => Payment::STATUS_EN_ATTENTE_CONFIRMATION,
             ]);
 
             $booking->update(['payment_status' => 'en_attente_confirmation']);
@@ -171,7 +176,7 @@ class PaymentController extends Controller
                     'booking_ref'    => $booking->reference ?? "BK-{$booking->id}",
                     'amount'         => $payment->amount,
                     'currency'       => $payment->currency,
-                    'transaction_id' => $payment->transaction_id,
+                    'transaction_id' => $payment->provider_ref,
                     'submitted_at'   => $payment->created_at->format('d/m/Y H:i'),
                     'status'         => $payment->status_label,
                     'message'        => "Votre paiement est en cours de vérification. Confirmation d'ici 30 minutes.",
@@ -238,12 +243,10 @@ class PaymentController extends Controller
         }
 
         $payment->update([
-            'provider_ref'   => $transactionId,
-            'transaction_id' => $transactionId,
-            'phone'          => $phoneNumber,
-            'phone_number'   => $phoneNumber,
-            'proof_image'    => $proofPath,
-            'status'         => Payment::STATUS_EN_ATTENTE_CONFIRMATION,
+            'provider_ref' => $transactionId,
+            'phone'        => $phoneNumber,
+            'proof_image'  => $proofPath,
+            'status'       => Payment::STATUS_EN_ATTENTE_CONFIRMATION,
         ]);
 
         $payment->booking?->update(['payment_status' => 'en_attente_confirmation']);
@@ -323,7 +326,7 @@ class PaymentController extends Controller
                 'booking_ref'    => $payment->booking->reference ?? "BK-{$payment->booking_id}",
                 'amount'         => $payment->amount,
                 'currency'       => $payment->currency,
-                'transaction_id' => $payment->transaction_id,
+                'transaction_id' => $payment->provider_ref,
                 'verified_at'    => $payment->verified_at?->format('d/m/Y H:i'),
                 'status'         => 'Paiement confirmé ✅',
                 'message'        => 'Votre paiement a été validé. Votre réservation est confirmée !',
