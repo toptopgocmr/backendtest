@@ -28,12 +28,23 @@ class AuthController extends Controller
     // ────────────────────────────────────────────────────────────────────────
     public function register(Request $request)
     {
+        // FIX : normaliser le numéro avant validation
+        // Certains utilisateurs tapent 00242xxx au lieu de +242xxx
+        if ($request->filled('phone')) {
+            $phone = trim($request->phone);
+            // Remplacer 00 initial par + (format international)
+            if (str_starts_with($phone, '00')) {
+                $phone = '+' . substr($phone, 2);
+            }
+            $request->merge(['phone' => $phone]);
+        }
+
         $request->validate([
             'name'                  => 'nullable|string|max:191',
             'first_name'            => 'nullable|string|max:100',
             'last_name'             => 'nullable|string|max:100',
             'email'                 => 'nullable|email|unique:users,email',
-            'phone'                 => 'required|string|unique:users,phone',
+            'phone'                 => 'required|string|min:8|max:20|unique:users,phone',
             'country_code'          => 'nullable|string',
             'country'               => 'nullable|string',
             'password'              => 'required|string|min:6|confirmed',
@@ -75,6 +86,15 @@ class AuthController extends Controller
     // ────────────────────────────────────────────────────────────────────────
     public function login(Request $request)
     {
+        // FIX : normaliser le numéro
+        if ($request->filled('phone')) {
+            $phone = trim($request->phone);
+            if (str_starts_with($phone, '00')) {
+                $phone = '+' . substr($phone, 2);
+            }
+            $request->merge(['phone' => $phone]);
+        }
+
         $request->validate([
             'phone'    => 'nullable|string',
             'email'    => 'nullable|string',
