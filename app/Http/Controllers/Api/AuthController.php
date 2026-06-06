@@ -28,17 +28,6 @@ class AuthController extends Controller
     // ────────────────────────────────────────────────────────────────────────
     public function register(Request $request)
     {
-        // FIX : normaliser le numéro avant validation
-        // Certains utilisateurs tapent 00242xxx au lieu de +242xxx
-        if ($request->filled('phone')) {
-            $phone = trim($request->phone);
-            // Remplacer 00 initial par + (format international)
-            if (str_starts_with($phone, '00')) {
-                $phone = '+' . substr($phone, 2);
-            }
-            $request->merge(['phone' => $phone]);
-        }
-
         $request->validate([
             'name'                  => 'nullable|string|max:191',
             'first_name'            => 'nullable|string|max:100',
@@ -48,7 +37,27 @@ class AuthController extends Controller
             'country_code'          => 'nullable|string',
             'country'               => 'nullable|string',
             'password'              => 'required|string|min:6|confirmed',
+        ], [
+            'phone.unique'       => 'Ce numéro est déjà associé à un compte.',
+            'phone.min'          => 'Numéro de téléphone trop court.',
+            'email.unique'       => 'Cette adresse email est déjà utilisée.',
+            'password.confirmed' => 'Les mots de passe ne correspondent pas.',
         ]);
+
+        // Validation Congo (CG) : format +242 068829797 ou +242 055212223
+        // Après +242 : 9 chiffres commençant par 06 ou 05 (le 0 est inclus)
+        $countryCode = $request->country_code ?? 'CG';
+        if ($countryCode === 'CG') {
+            $phone     = $request->phone;                          // ex: +242068829797
+            $localPart = preg_replace('/^\+242/', '', $phone);   // → 068829797
+            if (!preg_match('/^0[56]\d{7}$/', $localPart)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Numéro invalide. Format attendu : +242 06x xxx xxx ou +242 05x xxx xxx (9 chiffres après +242).',
+                    'errors'  => ['phone' => ['Format : 068 829 797 ou 055 212 223']],
+                ], 422);
+            }
+        }
 
         $firstName = trim($request->input('first_name', ''));
         $lastName  = trim($request->input('last_name',  ''));
@@ -86,15 +95,6 @@ class AuthController extends Controller
     // ────────────────────────────────────────────────────────────────────────
     public function login(Request $request)
     {
-        // FIX : normaliser le numéro
-        if ($request->filled('phone')) {
-            $phone = trim($request->phone);
-            if (str_starts_with($phone, '00')) {
-                $phone = '+' . substr($phone, 2);
-            }
-            $request->merge(['phone' => $phone]);
-        }
-
         $request->validate([
             'phone'    => 'nullable|string',
             'email'    => 'nullable|string',
@@ -103,9 +103,58 @@ class AuthController extends Controller
 
         $user = null;
         if ($request->filled('phone')) {
-            $user = User::where('phone', $request->phone)->first();
+            $phone = trim($request->phone);
+
+            // Normaliser 00xxx → +xxx
+            if (str_starts_with($phone, '00')) {
+                $phone = '+' . substr($phone, 2);
+            }
+
+            // FIX : chercher le numéro dans plusieurs formats
+            // car les anciens comptes peuvent avoir été créés avec différents formats
+            $user = User::where('phone', $phone)->first();
+
+            if (!$user) {
+                // Essayer sans le + (ex: 24255212223)
+                $user = User::where('phone', ltrim($phone, '+'))->first();
+            }
+            if (!$user) {
+                // Essayer avec 0 devant les chiffres locaux (ex: 055212223)
+                // Extraire les chiffres après l'indicatif +242
+                $digits = preg_replace('/^\+\d{3}/', '', $phone); // ex: 55212223
+                $user = User::where('phone', 'like', '%' . $digits)->first();
+            }
+            if (!$user) {
+                // Essayer avec 0 initial (ex: 055212223)
+                $digits = preg_replace('/^\+\d{3}0?/', '', $phone);
+                $user = User::where('phone', 'like', '%' . $digits)->first();
+            }
+
         } elseif ($request->filled('email')) {
-            $user = User::where('email', $request->email)->first();
+            $email = strtolower(trim($request->email));
+
+            // Cherche par email exact (insensible à la casse)
+            $user = User::whereRaw('LOWER(email) = ?', [$email])->first();
+
+            // Si pas trouvé, tenter aussi par téléphone au cas où
+            // l'utilisateur aurait saisi son numéro dans le champ email
+            if (!$user && !str_contains($email, '@')) {
+                $user = User::where('phone', $email)->first();
+                if (!$user) {
+                    $user = User::where('phone', 'like', '%' . $email)->first();
+                }
+            }
+        }
+
+        // Si toujours pas trouvé et que les deux champs sont remplis,
+        // essayer l'autre champ (téléphone dans email ou inversement)
+        if (!$user && $request->filled('email') && !str_contains($request->email, '@')) {
+            // L'utilisateur a peut-être mis son téléphone dans le champ email
+            $phone = trim($request->email);
+            if (str_starts_with($phone, '00')) {
+                $phone = '+' . substr($phone, 2);
+            }
+            $user = User::where('phone', $phone)->first();
         }
 
         if (!$user || !Hash::check($request->password, $user->password)) {
