@@ -101,14 +101,6 @@ class AuthController extends Controller
             'password' => 'required|string',
         ]);
 
-        // LOG TEMPORAIRE — à retirer après diagnostic
-        \Illuminate\Support\Facades\Log::info('LOGIN_ATTEMPT', [
-            'phone'        => $request->phone,
-            'email'        => $request->email,
-            'has_password' => !empty($request->password),
-            'ip'           => $request->ip(),
-        ]);
-
         $user = null;
         if ($request->filled('phone')) {
             $phone = trim($request->phone);
@@ -165,15 +157,6 @@ class AuthController extends Controller
             $user = User::where('phone', $phone)->first();
         }
 
-        // LOG TEMPORAIRE — diagnostic 401
-        \Illuminate\Support\Facades\Log::info('LOGIN_RESULT', [
-            'user_found'    => $user !== null,
-            'phone_in_db'   => $user?->phone,
-            'password_ok'   => $user ? \Illuminate\Support\Facades\Hash::check($request->password, $user->password) : false,
-            'is_verified'   => $user?->is_verified,
-            'is_active'     => $user?->is_active,
-        ]);
-
         if (!$user || !Hash::check($request->password, $user->password)) {
             return response()->json([
                 'success' => false,
@@ -214,7 +197,31 @@ class AuthController extends Controller
             'otp'   => 'required|string',
         ]);
 
+        \Illuminate\Support\Facades\Log::info('VERIFY_OTP', [
+            'phone_received' => $request->phone,
+            'otp_received'   => $request->otp,
+        ]);
+
+        // Chercher avec le format exact ET sans le 0 (fallback migration)
         $user = User::where('phone', $request->phone)->first();
+
+        if (!$user) {
+            // Fallback : chercher sans le 0 après +242
+            $phoneAlt = preg_replace('/^(\+\d{3})0/', '$1', $request->phone);
+            $user = User::where('phone', $phoneAlt)->first();
+        }
+        if (!$user) {
+            // Fallback partiel sur 8 derniers chiffres
+            $digits = substr(preg_replace('/\D/', '', $request->phone), -8);
+            $user = User::where('phone', 'like', '%' . $digits)->first();
+        }
+
+        \Illuminate\Support\Facades\Log::info('VERIFY_OTP_USER', [
+            'user_found'  => $user !== null,
+            'phone_in_db' => $user?->phone,
+            'otp_in_db'   => $user?->otp_code,
+            'otp_match'   => $user ? ($user->otp_code === $request->otp) : false,
+        ]);
 
         if (!$user) {
             return response()->json(['success' => false, 'message' => 'Utilisateur introuvable.'], 404);
