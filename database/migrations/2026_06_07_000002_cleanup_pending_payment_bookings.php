@@ -7,8 +7,19 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Passer les réservations 'en_attente' sans paiement → 'pending_payment'
-        // pour nettoyer les réservations orphelines déjà en base
+        // 1. Ajouter 'pending_payment' à l'ENUM avant l'UPDATE
+        DB::statement("
+            ALTER TABLE bookings
+            MODIFY COLUMN status ENUM(
+                'pending_payment',
+                'en_attente',
+                'confirmé',
+                'terminé',
+                'annulé'
+            ) NOT NULL DEFAULT 'pending_payment'
+        ");
+
+        // 2. Passer les réservations sans paiement → pending_payment
         DB::statement("
             UPDATE bookings
             SET status = 'pending_payment'
@@ -22,7 +33,20 @@ return new class extends Migration
 
     public function down(): void
     {
-        // Rollback : remettre pending_payment → en_attente
-        DB::statement("UPDATE bookings SET status = 'en_attente' WHERE status = 'pending_payment'");
+        // Remettre pending_payment → en_attente
+        DB::statement("
+            UPDATE bookings SET status = 'en_attente' WHERE status = 'pending_payment'
+        ");
+
+        // Retirer pending_payment de l'ENUM
+        DB::statement("
+            ALTER TABLE bookings
+            MODIFY COLUMN status ENUM(
+                'en_attente',
+                'confirmé',
+                'terminé',
+                'annulé'
+            ) NOT NULL DEFAULT 'en_attente'
+        ");
     }
 };
