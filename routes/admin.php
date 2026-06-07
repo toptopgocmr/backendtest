@@ -25,7 +25,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
     });
 
     // ── AUTH ADMIN ─────────────────────────────────────────────────────────────
-    Route::middleware('auth:admin')->group(function () {
+    Route::middleware('admin')->group(function () {
 
         Route::post('logout', [AuthController::class, 'logout'])->name('logout');
 

@@ -5,6 +5,7 @@ namespace App\Providers;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Pagination\Paginator;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -19,10 +20,12 @@ class AppServiceProvider extends ServiceProvider
         Schema::defaultStringLength(191);
 
         // FIX HTTPS Railway : forcer HTTPS pour toutes les URLs générées
-        // Railway est derrière un reverse proxy — Laravel doit forcer le schéma HTTPS
-        // pour éviter les redirections 307 et les erreurs "Mixed content"
         if (config('app.env') === 'production') {
             URL::forceScheme('https');
         }
+
+        // FIX Pagination : le layout admin utilise Tailwind CSS
+        // Sans ça, $collection->links() crashe ou affiche du HTML Bootstrap non stylé
+        Paginator::useTailwind();
     }
 }

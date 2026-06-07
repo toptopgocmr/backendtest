@@ -41,12 +41,13 @@
       <thead><tr><th>Référence</th><th>Client</th><th>Bien</th><th>Montant</th><th>Statut</th></tr></thead>
       <tbody>
       @foreach($recent_bookings as $booking)
+      @php $clientName = $booking->user->name ?? 'Client supprimé'; @endphp
       <tr>
         <td><strong style="color:var(--gold)">{{ $booking->reference }}</strong></td>
         <td>
           <div style="display:flex;align-items:center;gap:8px">
-            <div class="avatar">{{ strtoupper(substr($booking->user->name,0,1)) }}</div>
-            <span>{{ $booking->user->name }}</span>
+            <div class="avatar">{{ strtoupper(substr($clientName, 0, 1)) }}</div>
+            <span>{{ $clientName }}</span>
           </div>
         </td>
         <td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ $booking->property->title ?? '—' }}</td>
@@ -119,7 +120,7 @@
       <tr>
         <td>
           <div style="display:flex;align-items:center;gap:8px">
-            <div class="avatar">{{ strtoupper(substr($user->name,0,1)) }}</div>
+            <div class="avatar">{{ strtoupper(substr($user->name ?? '?', 0, 1)) }}</div>
             <div>
               <div style="font-weight:600">{{ $user->name }}</div>
               <div style="font-size:11px;color:var(--txt3)">{{ $user->phone }}</div>
