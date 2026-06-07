@@ -101,6 +101,14 @@ class AuthController extends Controller
             'password' => 'required|string',
         ]);
 
+        // LOG TEMPORAIRE — à retirer après diagnostic
+        \Illuminate\Support\Facades\Log::info('LOGIN_ATTEMPT', [
+            'phone'        => $request->phone,
+            'email'        => $request->email,
+            'has_password' => !empty($request->password),
+            'ip'           => $request->ip(),
+        ]);
+
         $user = null;
         if ($request->filled('phone')) {
             $phone = trim($request->phone);
@@ -156,6 +164,15 @@ class AuthController extends Controller
             }
             $user = User::where('phone', $phone)->first();
         }
+
+        // LOG TEMPORAIRE — diagnostic 401
+        \Illuminate\Support\Facades\Log::info('LOGIN_RESULT', [
+            'user_found'    => $user !== null,
+            'phone_in_db'   => $user?->phone,
+            'password_ok'   => $user ? \Illuminate\Support\Facades\Hash::check($request->password, $user->password) : false,
+            'is_verified'   => $user?->is_verified,
+            'is_active'     => $user?->is_active,
+        ]);
 
         if (!$user || !Hash::check($request->password, $user->password)) {
             return response()->json([
