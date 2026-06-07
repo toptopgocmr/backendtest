@@ -22,8 +22,8 @@ class DashboardController extends Controller
         $stats = [
             'total_properties'  => Property::where('is_approved', true)->count(),
             'new_properties'    => Property::whereMonth('created_at', now()->month)->count(),
-            'total_bookings'    => Booking::count(),
-            'pending_bookings'  => Booking::where('status', 'en_attente')->count(),
+            'total_bookings'    => Booking::where('status', '!=', 'pending_payment')->count(),
+            'pending_bookings'  => Booking::where('status', 'en_attente')->count(), // pending_payment exclu
             'total_revenue'     => Payment::where('status', 'succès')->sum('amount'),
             'monthly_revenue'   => Payment::where('status', 'succès')
                                         ->whereMonth('paid_at', now()->month)
@@ -34,6 +34,7 @@ class DashboardController extends Controller
         ];
 
         $recentBookings = Booking::with(['user', 'property', 'payment'])
+            ->where('status', '!=', 'pending_payment')
             ->latest()
             ->take(6)
             ->get();

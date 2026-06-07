@@ -20,6 +20,7 @@ class BookingController extends Controller
                 'property.owner.ownerProfile',
                 'payment',
             ])
+            ->where('status', '!=', 'pending_payment') // ← exclure réservations sans preuve de paiement
             ->when($request->status, fn ($q, $v) => $q->where('status', $v))
             ->latest()
             ->paginate(15);

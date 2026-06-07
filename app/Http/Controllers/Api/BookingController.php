@@ -104,14 +104,14 @@ class BookingController extends Controller
         if ($pricePeriod === 'heure') {
             // Comparaison datetime complète — même jour, même créneau horaire
             $overlappingBooking = Booking::where('property_id', $request->property_id)
-                ->whereNotIn('status', ['annulé'])
+                ->whereNotIn('status', ['annulé', 'pending_payment']) // pending_payment ne bloque pas le créneau
                 ->where('check_in',  '<', $checkOut)
                 ->where('check_out', '>', $checkIn)
                 ->first();
         } else {
             // Comparaison par date (jour) pour nuit / jour / semaine / mois / an
             $overlappingBooking = Booking::where('property_id', $request->property_id)
-                ->whereNotIn('status', ['annulé'])
+                ->whereNotIn('status', ['annulé', 'pending_payment']) // pending_payment ne bloque pas le créneau
                 ->whereDate('check_in',  '<', $checkOut->toDateString())
                 ->whereDate('check_out', '>', $checkIn->toDateString())
                 ->first();
@@ -172,7 +172,7 @@ class BookingController extends Controller
             'owner_commission_amount' => $commissionAmount,
             'owner_amount'            => $ownerAmount,
             'currency'                => $property->currency ?? 'XAF',
-            'status'                  => 'en_attente',
+            'status'                  => 'pending_payment', // ← caché de l'admin jusqu'au paiement
             'notes'                   => $request->notes,
         ]);
 
@@ -181,7 +181,7 @@ class BookingController extends Controller
         Notification::create([
             'user_id' => $request->user()->id,
             'title'   => 'Réservation créée 📅',
-            'body'    => "Votre réservation {$booking->reference} a été créée. Procédez au paiement.",
+            'body'    => "Votre réservation {$booking->reference} a été initialisée. Soumettez votre preuve de paiement pour la confirmer.",
             'type'    => 'booking',
             'data'    => ['booking_id' => $booking->id, 'reference' => $booking->reference],
         ]);
@@ -189,7 +189,7 @@ class BookingController extends Controller
         return response()->json([
             'success' => true,
             'data'    => $this->bookingResource($booking),
-            'message' => 'Réservation créée. Procédez au paiement.',
+            'message' => 'Réservation initialisée. Soumettez votre preuve de paiement pour la valider.',
         ], 201);
     }
 

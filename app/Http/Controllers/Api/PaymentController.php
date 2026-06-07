@@ -166,7 +166,16 @@ class PaymentController extends Controller
                 'status'      => Payment::STATUS_EN_ATTENTE_CONFIRMATION,
             ]);
 
-            $booking->update(['payment_status' => 'en_attente_confirmation']);
+            // ✅ FIX : passer la réservation de pending_payment → en_attente
+            // C'est seulement après soumission de preuve que la réservation est visible dans l'admin
+            if ($booking->status === 'pending_payment') {
+                $booking->update([
+                    'status'         => 'en_attente',
+                    'payment_status' => 'en_attente_confirmation',
+                ]);
+            } else {
+                $booking->update(['payment_status' => 'en_attente_confirmation']);
+            }
 
             DB::commit();
 
