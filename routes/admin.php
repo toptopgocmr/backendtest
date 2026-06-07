@@ -67,6 +67,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // USERS
         Route::prefix('users')->name('users.')->group(function () {
             Route::get('/',            [UserController::class, 'index'])->name('index');
+            Route::get('export-csv',   [UserController::class, 'exportCsv'])->name('export-csv');
             Route::get('{id}',         [UserController::class, 'show'])->name('show');
             Route::put('{id}/toggle',  [UserController::class, 'toggle'])->name('toggle');
             Route::put('{id}/verify',  [UserController::class, 'verify'])->name('verify');
