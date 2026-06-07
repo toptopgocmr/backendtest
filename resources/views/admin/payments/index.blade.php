@@ -14,8 +14,8 @@
   {{-- ✅ NOUVEAU : Bouton export CSV (hérite des filtres actifs) --}}
   <a href="{{ route('admin.payments.export-csv', request()->query()) }}"
      class="btn btn-outline"
-     title="Exporter en CSV (Excel)">
-    <i class="fas fa-file-csv"></i> Exporter CSV
+     title="Exporter en Excel (.xlsx)">
+    <i class="fas fa-file-excel"></i> Exporter Excel
   </a>
 </div>
 
