@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\Property;
 use App\Models\PropertyAvailability;
+use App\Models\PropertyPricingGrid;
 use App\Models\Notification;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
@@ -33,6 +34,7 @@ class BookingController extends Controller
             'check_in'    => 'required|date',
             'check_out'   => 'required|date|after:check_in',
             'guests'      => 'required|integer|min:1',
+            'period'      => 'nullable|string|in:heure,jour,nuit,semaine,mois,an',
             'notes'       => 'nullable|string|max:500',
             'options'     => 'nullable|array',
             'options.*'   => 'nullable|string',
@@ -66,7 +68,19 @@ class BookingController extends Controller
             ], 422);
         }
 
-        $pricePeriod = $property->price_period ?? 'nuit';
+        // Utilise le tarif sélectionné par l'utilisateur (period) en priorité
+        $requestedPeriod = $request->period;
+        $pricingGrid     = null;
+
+        if ($requestedPeriod) {
+            $pricingGrid = PropertyPricingGrid::where('property_id', $property->id)
+                ->where('period', $requestedPeriod)
+                ->where('is_active', true)
+                ->first();
+        }
+
+        // Fallback sur price_period du bien si aucun tarif grille trouvé
+        $pricePeriod = $pricingGrid?->period ?? $requestedPeriod ?? $property->price_period ?? 'nuit';
         $duration    = $this->calcDuration($checkIn, $checkOut, $pricePeriod);
 
         if ($duration < 1) {
@@ -143,7 +157,8 @@ class BookingController extends Controller
         }
 
         // ── Calcul du montant ──────────────────────────────────────────────────
-        $price = (float) ($property->price ?? 0);
+        // Priorité : prix de la grille tarifaire sélectionnée → prix de base du bien
+        $price = $pricingGrid ? (float) $pricingGrid->price : (float) ($property->price ?? 0);
         if ($price <= 0) {
             return response()->json([
                 'success' => false,
