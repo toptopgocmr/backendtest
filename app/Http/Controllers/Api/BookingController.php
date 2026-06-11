@@ -73,10 +73,28 @@ class BookingController extends Controller
         $pricingGrid     = null;
 
         if ($requestedPeriod) {
+            // Cherche le tarif sélectionné par le client
             $pricingGrid = PropertyPricingGrid::where('property_id', $property->id)
                 ->where('period', $requestedPeriod)
                 ->where('is_active', true)
                 ->first();
+        }
+
+        // Fallback : si period absent (ancienne app), on prend le premier tarif actif
+        // correspondant au price_period du bien, ou le moins cher disponible.
+        if (!$pricingGrid) {
+            $pricingGrid = PropertyPricingGrid::where('property_id', $property->id)
+                ->where('is_active', true)
+                ->where('period', $property->price_period ?? 'jour')
+                ->first();
+
+            // Si toujours rien, on prend n'importe quel tarif actif
+            if (!$pricingGrid) {
+                $pricingGrid = PropertyPricingGrid::where('property_id', $property->id)
+                    ->where('is_active', true)
+                    ->orderBy('price')
+                    ->first();
+            }
         }
 
         // Log stderr (visible dans Railway)
@@ -84,7 +102,7 @@ class BookingController extends Controller
             '[BOOKING_CREATE] property_id=%s period=%s grid=%s price_grid=%s price_prop=%s',
             $request->property_id,
             $requestedPeriod ?? 'NULL',
-            $pricingGrid ? 'FOUND(id='.$pricingGrid->id.')' : 'NOT_FOUND',
+            $pricingGrid ? 'FOUND(id='.$pricingGrid->id.',period='.$pricingGrid->period.')' : 'NOT_FOUND',
             $pricingGrid ? $pricingGrid->price : 'N/A',
             $property->price
         ));
