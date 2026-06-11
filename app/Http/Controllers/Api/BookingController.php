@@ -262,6 +262,30 @@ class BookingController extends Controller
         return response()->json(['success' => true, 'message' => 'Réservation confirmée.']);
     }
 
+    // ── Dates réservées pour le calendrier Flutter ────────────────────────────
+
+    public function bookedDates(string $id)
+    {
+        $bookings = Booking::where('property_id', $id)
+            ->whereNotIn('status', ['annulé', 'pending_payment'])
+            ->get(['check_in', 'check_out']);
+
+        $dates = [];
+        foreach ($bookings as $booking) {
+            $current = $booking->check_in->copy()->startOfDay();
+            $end     = $booking->check_out->copy()->startOfDay();
+            while ($current->lt($end)) {
+                $dates[] = $current->toDateString();
+                $current->addDay();
+            }
+        }
+
+        return response()->json([
+            'success'      => true,
+            'booked_dates' => array_values(array_unique($dates)),
+        ]);
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private function calcDuration(Carbon $checkIn, Carbon $checkOut, string $period): int
