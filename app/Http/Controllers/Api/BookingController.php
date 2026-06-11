@@ -69,15 +69,7 @@ class BookingController extends Controller
         }
 
         // Utilise le tarif sélectionné par l'utilisateur (period) en priorité
-        \Log::info('BOOKING_CREATE', [
-            'property_id' => $request->property_id,
-            'period'      => $request->period,
-            'check_in'    => $request->check_in,
-            'check_out'   => $request->check_out,
-            'guests'      => $request->guests,
-        ]);
-
-        $requestedPeriod = $request->period;
+        $requestedPeriod = $request->input('period');
         $pricingGrid     = null;
 
         if ($requestedPeriod) {
@@ -86,6 +78,16 @@ class BookingController extends Controller
                 ->where('is_active', true)
                 ->first();
         }
+
+        // Log stderr (visible dans Railway)
+        error_log(sprintf(
+            '[BOOKING_CREATE] property_id=%s period=%s grid=%s price_grid=%s price_prop=%s',
+            $request->property_id,
+            $requestedPeriod ?? 'NULL',
+            $pricingGrid ? 'FOUND(id='.$pricingGrid->id.')' : 'NOT_FOUND',
+            $pricingGrid ? $pricingGrid->price : 'N/A',
+            $property->price
+        ));
 
         // Fallback sur price_period du bien si aucun tarif grille trouvé
         $pricePeriod = $pricingGrid?->period ?? $requestedPeriod ?? $property->price_period ?? 'nuit';
