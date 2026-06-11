@@ -14,24 +14,45 @@ body{
   flex-direction:column;
   align-items:center;
   justify-content:center;
-  background:#FFFFFF;
+  background:#ECEEF6;
   position:relative;
   overflow:hidden;
 }
 
-/* Décorations de fond subtiles couleurs Tholad */
-body::before{
-  content:'';position:absolute;top:-180px;right:-180px;
-  width:520px;height:520px;
-  background:radial-gradient(circle, rgba(0,71,255,.06) 0%, transparent 70%);
-  border-radius:50%;pointer-events:none;
+/* Carrés flottants décoratifs — style TopTopGo */
+.bg-squares{
+  position:fixed;inset:0;pointer-events:none;z-index:0;
 }
-body::after{
-  content:'';position:absolute;bottom:-130px;left:-130px;
-  width:380px;height:380px;
-  background:radial-gradient(circle, rgba(139,0,0,.05) 0%, transparent 70%);
-  border-radius:50%;pointer-events:none;
+.sq{
+  position:absolute;
+  border-radius:14px;
 }
+/* Haut gauche */
+.sq:nth-child(1){width:180px;height:180px;top:-40px;left:-30px;
+  background:rgba(0,71,255,.10);transform:rotate(-18deg);}
+.sq:nth-child(2){width:110px;height:110px;top:160px;left:30px;
+  background:rgba(26,0,153,.08);transform:rotate(12deg);}
+.sq:nth-child(3){width:70px;height:70px;top:340px;left:-10px;
+  background:rgba(0,71,255,.07);transform:rotate(-30deg);}
+/* Milieu gauche */
+.sq:nth-child(4){width:90px;height:90px;top:55%;left:4%;
+  background:rgba(139,0,0,.07);transform:rotate(20deg);}
+/* Bas gauche */
+.sq:nth-child(5){width:130px;height:130px;bottom:-20px;left:40px;
+  background:rgba(26,0,153,.09);transform:rotate(-14deg);}
+/* Haut droite */
+.sq:nth-child(6){width:160px;height:160px;top:-30px;right:-20px;
+  background:rgba(26,0,153,.08);transform:rotate(22deg);}
+.sq:nth-child(7){width:90px;height:90px;top:180px;right:50px;
+  background:rgba(0,71,255,.07);transform:rotate(-10deg);}
+/* Milieu droite */
+.sq:nth-child(8){width:120px;height:120px;top:42%;right:-10px;
+  background:rgba(0,71,255,.09);transform:rotate(30deg);}
+.sq:nth-child(9){width:65px;height:65px;top:58%;right:80px;
+  background:rgba(139,0,0,.07);transform:rotate(-20deg);}
+/* Bas droite */
+.sq:nth-child(10){width:150px;height:150px;bottom:-30px;right:-20px;
+  background:rgba(0,71,255,.08);transform:rotate(-25deg);}
 
 /* Barre Tholad en haut */
 .tholad-topbar{
@@ -165,8 +186,8 @@ footer{
   width:100%;
   padding:20px;
   text-align:center;
-  border-top:1px solid #F0F0F0;
-  background:#fff;
+  border-top:1px solid rgba(0,0,0,.06);
+  background:rgba(255,255,255,.6);
   position:relative;z-index:1;
 }
 footer .footer-logo{
@@ -183,6 +204,20 @@ footer strong{color:#4B5563;font-weight:700;}
 </style>
 </head>
 <body>
+
+<!-- Carrés décoratifs fond -->
+<div class="bg-squares">
+  <div class="sq"></div>
+  <div class="sq"></div>
+  <div class="sq"></div>
+  <div class="sq"></div>
+  <div class="sq"></div>
+  <div class="sq"></div>
+  <div class="sq"></div>
+  <div class="sq"></div>
+  <div class="sq"></div>
+  <div class="sq"></div>
+</div>
 
 <div class="tholad-topbar"></div>
 
