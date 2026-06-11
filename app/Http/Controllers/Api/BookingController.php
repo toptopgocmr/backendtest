@@ -47,10 +47,11 @@ class BookingController extends Controller
             ], 422);
         }
 
-        if ($property->max_guests && $request->guests > $property->max_guests) {
+        $effectiveCapacity = $property->capacity ?? $property->max_guests;
+        if ($effectiveCapacity && $request->guests > $effectiveCapacity) {
             return response()->json([
                 'success' => false,
-                'message' => "Ce bien accueille maximum {$property->max_guests} personne(s).",
+                'message' => "Ce bien accueille maximum {$effectiveCapacity} personne(s).",
             ], 422);
         }
 
