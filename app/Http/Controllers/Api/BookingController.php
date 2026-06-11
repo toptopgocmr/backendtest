@@ -69,6 +69,14 @@ class BookingController extends Controller
         }
 
         // Utilise le tarif sélectionné par l'utilisateur (period) en priorité
+        \Log::info('BOOKING_CREATE', [
+            'property_id' => $request->property_id,
+            'period'      => $request->period,
+            'check_in'    => $request->check_in,
+            'check_out'   => $request->check_out,
+            'guests'      => $request->guests,
+        ]);
+
         $requestedPeriod = $request->period;
         $pricingGrid     = null;
 
