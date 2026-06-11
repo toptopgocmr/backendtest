@@ -299,8 +299,13 @@ class AuthController extends Controller
     // ────────────────────────────────────────────────────────────────────────
     public function forgotPassword(Request $request)
     {
+        $request->validate([
+            'phone' => 'required|string',
+        ]);
+
         $user = User::where('phone', $request->phone)->first();
 
+        // Réponse neutre — ne révèle pas si le numéro existe
         if (!$user) {
             return response()->json(['success' => true, 'message' => 'Si ce numéro existe, un OTP a été envoyé.']);
         }
