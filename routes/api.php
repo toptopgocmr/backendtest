@@ -32,6 +32,9 @@ Route::prefix('v1')->group(function () {
     Route::get('properties/{id}',         [PropertyController::class, 'show']);
     Route::get('properties/{id}/reviews', [ReviewController::class, 'propertyReviews']);
 
+    // Disponibilités — jours déjà réservés (utilisé par le calendrier Flutter)
+    Route::get('properties/{id}/bookings/booked-dates', [BookingController::class, 'bookedDates']);
+
     Route::get('properties/{id}/pricing',            [PropertyPricingController::class, 'index']);
     Route::post('properties/{id}/pricing/calculate', [PropertyPricingController::class, 'calculate']);
 
