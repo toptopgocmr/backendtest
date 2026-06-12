@@ -17,6 +17,7 @@ class BookingController extends Controller
     {
         $bookings = Booking::with(['property.primaryImage', 'payment'])
             ->where('user_id', $request->user()->id)
+            ->when($request->status, fn($q, $s) => $q->where('status', $s))
             ->orderByDesc('created_at')
             ->paginate(10);
 
