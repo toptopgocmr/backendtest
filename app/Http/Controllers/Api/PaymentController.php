@@ -19,7 +19,7 @@ class PaymentController extends Controller
     {
         return [
             'mtn_momo' => [
-                'number' => env('MTN_MOMO_NUMBER', '+242 06 XXX XX XX'),
+                'number' => env('MTN_MOMO_NUMBER', '+242069307382'),
                 'label'  => 'MTN MoMo',
             ],
             'airtel_money' => [

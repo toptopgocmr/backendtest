@@ -22,7 +22,7 @@ class PropertyController extends Controller
 
         $properties = $query->orderByDesc('is_featured')
                             ->orderByDesc('created_at')
-                            ->paginate($request->per_page ?? 12);
+                            ->paginate(min((int) ($request->per_page ?? 12), 100));
 
         return response()->json([
             'success' => true,
